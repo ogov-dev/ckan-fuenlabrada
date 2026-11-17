@@ -31,6 +31,7 @@ services:
     build:
       context: ..
       dockerfile: docker/ckan/Dockerfile
+      target: baseline
     platform: linux/amd64
     environment: *ckan-env
     depends_on:

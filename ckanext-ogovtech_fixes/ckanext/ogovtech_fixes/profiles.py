@@ -13,6 +13,8 @@ Catálogo
 
 Conjunto de datos
   * ``dct:publisher``  -> el mismo DIR3 (si el dataset no trae uno propio).
+  * ``dct:license``    -> URL de la licencia (las distribuciones la heredan con
+    ``ckanext.dcat.resource.inherit.license = true``).
   * ``dct:spatial``    -> el del catálogo si el dataset no indica otro.
   * ``dct:language``   -> por defecto español si no se ha indicado.
 
@@ -126,6 +128,12 @@ class DCATAPESProfile(RDFProfile):
             isinstance(o, URIRef) for o in g.objects(dataset_ref, DCT.spatial)
         ):
             g.add((dataset_ref, DCT.spatial, URIRef(spatial)))
+
+        # Licencia a nivel de conjunto de datos (NTI-RISP). Las distribuciones
+        # la heredan vía ckanext.dcat.resource.inherit.license (DCAT-AP).
+        lic = dataset_dict.get("license_url")
+        if lic and lic.startswith(("http://", "https://")) and not list(g.objects(dataset_ref, DCT.license)):
+            g.add((dataset_ref, DCT.license, URIRef(lic)))
 
         # Idioma por defecto.
         if not list(g.objects(dataset_ref, DCT.language)):

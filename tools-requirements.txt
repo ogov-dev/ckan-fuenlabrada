@@ -1,0 +1,4 @@
+# Dependencias de las herramientas (migración y conectores), fijadas.
+ckanapi==4.11
+requests==2.34.2
+PyYAML==6.0.3

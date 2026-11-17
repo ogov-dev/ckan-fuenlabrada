@@ -12,13 +12,16 @@ No se añaden maquetaciones por ayuntamiento ni se toca el core.
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 import ckan.plugins as p
+import ckan.plugins.toolkit as tk
 
 from ckanext.ogovtech_theme.icons import ogovtech_group_icon
-import ckan.plugins.toolkit as tk
+
+log = logging.getLogger(__name__)
 
 PREFIX = "ckanext.ogovtech_theme."
 
@@ -94,13 +97,15 @@ def ogovtech_theme_home() -> dict[str, Any]:
         datasets = res["results"]
         stats = {"dataset_count": res["count"]}
         formats = len(res["search_facets"].get("res_format", {}).get("items", []))
-    except Exception:  # Solr caído: la portada no debe romperse
+    except Exception:  # p. ej. Solr caído: la portada no debe romperse, pero se registra
+        log.exception("ogovtech_theme: no se pudieron obtener los datasets de la portada")
         datasets, stats, formats = [], {"dataset_count": 0}, 0
     try:
         groups = act("group_list")(dict(ctx), {"all_fields": True, "sort": "title asc", "limit": 30})
         stats["group_count"] = len(act("group_list")(dict(ctx), {}))
         stats["organization_count"] = len(act("organization_list")(dict(ctx), {}))
     except Exception:
+        log.exception("ogovtech_theme: no se pudieron obtener grupos/organizaciones de la portada")
         groups = []
         stats.setdefault("group_count", 0)
         stats.setdefault("organization_count", 0)

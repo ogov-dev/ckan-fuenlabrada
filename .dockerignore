@@ -1,0 +1,18 @@
+# Nunca en el contexto de construcción de la imagen
+.git
+.gitignore
+**/.env
+**/.env.*
+!docker/.env.example
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.pytest_cache
+migration/dumps
+migration/reports
+connectors/**/reports
+ansible
+tests/acceptance/reports
+*.md
+!README.md
+.DS_Store

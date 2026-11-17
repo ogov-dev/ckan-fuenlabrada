@@ -1,0 +1,54 @@
+# Pruebas automatizadas (unitarias + integración con CKAN). Aislado del
+# entorno de despliegue: servicios y volúmenes propios, sin puertos publicados.
+#   docker compose -f tests/docker-compose.yml run --rm tests
+#   docker compose -f tests/docker-compose.yml down -v
+# Vive en tests/ a propósito: así no le afecta docker/.env (COMPOSE_PROJECT_NAME).
+name: ogov-ckan-test
+
+services:
+  tests:
+    build:
+      context: ..
+      dockerfile: docker/ckan/Dockerfile
+      target: test
+    image: ogov/ckan:test
+    platform: linux/amd64
+    entrypoint: ["pytest", "--ckan-ini=/srv/app/test.ini"]
+    command: []
+    depends_on:
+      db: { condition: service_healthy }
+      solr: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: test
+      CKAN_DB: ckan_test
+      CKAN_DB_USER: ckan_default
+      CKAN_DB_PASSWORD: pass
+      DATASTORE_DB: datastore_test
+      DATASTORE_READONLY_USER: datastore_default
+      DATASTORE_READONLY_PASSWORD: pass
+    volumes:
+      - ../docker/postgres:/docker-entrypoint-initdb.d:ro
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 20
+
+  solr:
+    image: ckan/ckan-solr:2.12-solr9
+    platform: linux/amd64
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8983/solr/ckan/admin/ping"]
+      interval: 10s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

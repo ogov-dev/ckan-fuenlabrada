@@ -161,94 +161,118 @@ def pick(rules: list[dict], name: str, field: str, default):
     return default
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("config")
-    ap.add_argument("--solo", help="procesar solo la tabla con esta ruta/slug")
-    ap.add_argument("--dry-run", action="store_true", help="no escribe en CKAN")
-    a = ap.parse_args()
-    cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
-    src = Source(cfg["source"], cfg.get("lang", "es"))
-    dst = None if a.dry_run else RemoteCKAN(os.environ["CKAN_URL"], apikey=os.environ["CKAN_API_TOKEN"], user_agent=UA)
-
-    prefix = cfg.get("dataset_prefix", "transparencia-")
-    excluded = {slugify(x) for x in cfg.get("excluir", [])}
+def build_package(name: str, slug: str, route: str, src_base: str, cfg: dict) -> dict:
     rules = cfg.get("clasificacion", [])
-    ok = empty = skipped = 0
+    group = pick(rules, name, "grupo", cfg.get("grupo_por_defecto"))
+    theme = pick(rules, name, "tematica", cfg.get("tematica_por_defecto", "sector-publico"))
+    return {
+        "name": (cfg.get("dataset_prefix", "transparencia-") + slug)[:100],
+        "title": name,
+        "notes": (f"{name}. Información publicada en el Portal de Transparencia "
+                  f"({src_base}). Actualizado automáticamente desde su API pública; "
+                  f"los documentos enlazados se sirven desde el propio portal de transparencia."),
+        "owner_org": cfg["organization"],
+        "license_id": cfg.get("license_id", "odc-by"),
+        "tags": [{"name": "transparencia"}],
+        "theme": [NTI + theme],
+        "language": [EU_LANG],
+        "url": src_base + route,
+        "groups": [{"name": group}] if group else [],
+    }
 
+
+def serialize(labels: list[str], rows: list[list[str]]) -> tuple[bytes, bytes]:
+    """CSV (UTF-8 con BOM, legible en Excel) y JSON (lista de objetos)."""
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(labels)
+    w.writerows(rows)
+    as_json = json.dumps([dict(zip(labels, r)) for r in rows], ensure_ascii=False, indent=1)
+    return buf.getvalue().encode("utf-8-sig"), as_json.encode("utf-8")
+
+
+VIEWER_RESOURCE = "Visor en el Portal de Transparencia"
+
+
+def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]]) -> None:
+    """Crea o actualiza el dataset y sus tres recursos (idempotente: por nombre)."""
+    try:
+        dst.action.package_show(id=pkg["name"])
+        dst.action.package_patch(id=pkg["name"], **pkg)
+    except NotFound:
+        dst.action.package_create(**pkg)
+    current = {r["name"]: r["id"] for r in dst.action.package_show(id=pkg["name"])["resources"]}
+    csv_bytes, json_bytes = serialize(labels, rows)
+    title = pkg["title"]
+    for rname, fmt, fname, content in ((f"{title} (CSV)", "CSV", f"{slug}.csv", csv_bytes),
+                                       (f"{title} (JSON)", "JSON", f"{slug}.json", json_bytes)):
+        data = {"package_id": pkg["name"], "name": rname, "format": fmt, "url": fname}
+        if rname in current:
+            data["id"] = current[rname]
+        dst.call_action("resource_update" if rname in current else "resource_create", data,
+                        files={"upload": (fname, io.BytesIO(content))})
+    vdata = {"package_id": pkg["name"], "name": VIEWER_RESOURCE, "format": "HTML", "url": pkg["url"]}
+    if VIEWER_RESOURCE in current:
+        dst.action.resource_update(id=current[VIEWER_RESOURCE], **vdata)
+    else:
+        dst.action.resource_create(**vdata)
+
+
+def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict[str, int]:
+    """Recorre las tablas del portal. Con ``dst=None`` no escribe (dry-run)."""
+    excluded = {slugify(x) for x in cfg.get("excluir", [])}
+    stats = {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 0}
     for ent in src.entities(cfg.get("module", 5)):
         name = ent["name"].get(src.lang) or next(iter(ent["name"].values()))
         route = ent.get("route") or "/" + slugify(name)
         slug = slugify(route.strip("/") or name)
-        if a.solo and a.solo not in (slug, route.strip("/")):
+        if solo and solo not in (slug, route.strip("/")):
             continue
         if slug in excluded or slugify(name) in excluded:
-            skipped += 1
+            stats["excluidas"] += 1
             log(f"- {name}: excluida por configuración")
             continue
         records = src.records(ent["uuid"])
         if not records:
-            empty += 1
+            stats["vacias"] += 1
             log(f"- {name}: sin registros, se omite")
             continue
         labels, rows = table(src, records, src.schema(route, ent["uuid"]))
         log(f"+ {name}: {len(rows)} registros, {len(labels)} columnas")
-        if a.dry_run:
+        if dst is None:
             log("    " + " · ".join(labels[:8]))
-            ok += 1
+            stats["publicadas"] += 1
             continue
-
-        ds_name = (prefix + slug)[:100]
-        group = pick(rules, name, "grupo", cfg.get("grupo_por_defecto"))
-        theme = pick(rules, name, "tematica", cfg.get("tematica_por_defecto", "sector-publico"))
-        viewer = src.base + route
-        pkg = {
-            "name": ds_name,
-            "title": name,
-            "notes": (f"{name}. Información publicada en el Portal de Transparencia "
-                      f"({src.base}). Actualizado automáticamente desde su API pública; "
-                      f"los documentos enlazados se sirven desde el propio portal de transparencia."),
-            "owner_org": cfg["organization"],
-            "license_id": cfg.get("license_id", "odc-by"),
-            "tags": [{"name": "transparencia"}],
-            "theme": [NTI + theme],
-            "language": [EU_LANG],
-            "url": viewer,
-            "groups": [{"name": group}] if group else [],
-        }
         try:
-            dst.action.package_show(id=ds_name)
-            dst.action.package_patch(id=ds_name, **pkg)
-        except NotFound:
-            dst.action.package_create(**pkg)
-        current = {r["name"]: r["id"] for r in dst.action.package_show(id=ds_name)["resources"]}
-
-        buf = io.StringIO()
-        w = csv.writer(buf)
-        w.writerow(labels)
-        w.writerows(rows)
-        payloads = [
-            (f"{name} (CSV)", "CSV", f"{slug}.csv", buf.getvalue().encode("utf-8-sig")),
-            (f"{name} (JSON)", "JSON", f"{slug}.json",
-             json.dumps([dict(zip(labels, r)) for r in rows], ensure_ascii=False, indent=1).encode()),
-        ]
-        for rname, fmt, fname, content in payloads:
-            data = {"package_id": ds_name, "name": rname, "format": fmt, "url": fname}
-            action = "resource_update" if rname in current else "resource_create"
-            if rname in current:
-                data["id"] = current[rname]
-            dst.call_action(action, data, files={"upload": (fname, io.BytesIO(content))})
-        vname = "Visor en el Portal de Transparencia"
-        vdata = {"package_id": ds_name, "name": vname, "format": "HTML", "url": viewer}
-        if vname in current:
-            dst.action.resource_update(id=current[vname], **vdata)
-        else:
-            dst.action.resource_create(**vdata)
-        ok += 1
+            publish(dst, build_package(name, slug, route, src.base, cfg), slug, labels, rows)
+            stats["publicadas"] += 1
+        except Exception as e:  # registrar y seguir con el resto de tablas
+            stats["errores"] += 1
+            log(f"! {name}: {type(e).__name__}: {e}")
         time.sleep(0.2)
+    return stats
 
-    log(f"[transparencia] {ok} tablas publicadas, {empty} vacías, {skipped} excluidas")
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("config")
+    ap.add_argument("--solo", help="procesar solo la tabla con esta ruta/slug")
+    ap.add_argument("--dry-run", action="store_true", help="no escribe en CKAN")
+    a = ap.parse_args(argv)
+    with open(a.config, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    src = Source(cfg["source"], cfg.get("lang", "es"))
+    dst = None
+    if not a.dry_run:
+        url, token = os.environ.get("CKAN_URL"), os.environ.get("CKAN_API_TOKEN")
+        if not url or not token:
+            raise SystemExit("Define CKAN_URL y CKAN_API_TOKEN (o usa --dry-run).")
+        dst = RemoteCKAN(url, apikey=token, user_agent=UA)
+    stats = run(cfg, src, dst, a.solo)
+    log(f"[transparencia] {stats['publicadas']} tablas publicadas, {stats['vacias']} vacías, "
+        f"{stats['excluidas']} excluidas, {stats['errores']} con error")
+    return 1 if stats["errores"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
