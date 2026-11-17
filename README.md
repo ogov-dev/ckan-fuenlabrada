@@ -45,7 +45,12 @@ migration/                  # migración estándar de portales existentes
   migrate.py
   portales/<ayto>.yml       # (en producción, en ogov-ckan-despliegues)
   dumps/                    # volcados descargados — ignorado por git
-ansible/                    # despliegue automatizado (pendiente)
+ansible/                    # despliegue de instancias independientes (rol "ckan")
+tests/
+  unit/                     # tests unitarios (migración, conector, iconos, arranque)
+  integration/              # tests contra CKAN real (tema, esquema, perfil DCAT)
+  acceptance/acceptance.py  # aceptación de una instancia desplegada (anexo, apdo. 8)
+  docker-compose.yml        # entorno de tests aislado
 ```
 
 ## Arranque local
@@ -84,6 +89,39 @@ docker exec -w /srv/app/connectors/transparencia -e CKAN_URL=http://localhost:50
 > Nota de alcance: la propuesta de Solucionex considera las integraciones con
 > sistemas externos fuera de la oferta base (bolsa de horas). Este conector es
 > código propio de oGov y no forma parte de la baseline de Solucionex.
+
+## Pruebas
+
+```bash
+# Unitarias + integración con CKAN (entorno aislado, se destruye al terminar)
+docker compose -f tests/docker-compose.yml run --rm tests
+docker compose -f tests/docker-compose.yml down -v
+
+# Aceptación contra una instancia en marcha (crea y borra sus datos de prueba)
+docker run --rm -v "$PWD/tests/acceptance:/acc" -w /acc --entrypoint python3 ogov/ckan:test \
+    acceptance.py --url http://<host>:<puerto> --token <token sysadmin> --report-dir /acc/reports
+
+# Rol de Ansible: lint, despliegue de 2 instancias, idempotencia y aislamiento
+ansible/test/run.sh && ansible/test/run.sh --down
+```
+
+## Despliegue con Ansible
+
+Una entrada del inventario por instancia; varias pueden compartir servidor.
+La infraestructura (Docker y Compose) la aporta el cliente: el rol lo comprueba,
+no lo instala.
+
+```bash
+cd ansible
+ansible-galaxy collection install -r requirements.yml
+cp inventories/vault.ejemplo.yml inventories/<entorno>/host_vars/<ayto>/vault.yml   # rellenar
+ansible-vault encrypt inventories/<entorno>/host_vars/<ayto>/vault.yml
+ansible-playbook playbooks/deploy.yml -i inventories/<entorno>/hosts.yml --ask-vault-pass [--limit <ayto>]
+```
+
+El rol valida variables (`meta/argument_specs.yml`) y la fortaleza de los secretos,
+genera el `.env` (0600), levanta la instancia con `docker compose`, espera a que
+responda y comprueba URL, título y extensiones.
 
 ## Versiones fijadas
 

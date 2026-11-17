@@ -1,0 +1,24 @@
+---
+ckan_base_dir: /opt/ogov-ckan
+ckan_image_pull: true
+ckan_sysadmin_name: ckan_admin
+ckan_dir3_code: ""
+ckan_spatial_uri: ""
+ckan_catalog_issued: ""
+ckan_env: production
+ckan_db_name: ckandb
+ckan_db_user: ckandbuser
+ckan_datastore_db: datastore
+ckan_datastore_ro_user: datastore_ro
+ckan_health_retries: 60
+# Dónde comprobar la salud tras desplegar (desde el servidor de la instancia)
+ckan_health_host: 127.0.0.1
+# Extensiones que debe exponer cada instancia (comprobación tras desplegar)
+ckan_expected_plugins:
+  - ogovtech_theme
+  - ogovtech_fixes
+  - dcat
+  - scheming_datasets
+  - pages
+  - datastore
+  - xloader

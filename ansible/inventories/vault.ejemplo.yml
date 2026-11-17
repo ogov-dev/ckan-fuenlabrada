@@ -1,0 +1,10 @@
+---
+# PLANTILLA. Copiar a host_vars/<instancia>/vault.yml, rellenar y cifrar:
+#   ansible-vault encrypt host_vars/<instancia>/vault.yml
+# Generar valores: python3 -c 'import secrets;print(secrets.token_urlsafe(48))'
+vault_ckan_secret_key: ""
+vault_ckan_jwt_secret: ""
+vault_ckan_sysadmin_password: ""
+vault_postgres_password: ""
+vault_ckan_db_password: ""
+vault_datastore_ro_password: ""

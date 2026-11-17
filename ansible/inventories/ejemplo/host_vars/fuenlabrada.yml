@@ -1,0 +1,11 @@
+---
+ckan_instance_name: fuenlabrada
+ckan_http_port: 8080
+ckan_site_url: https://datosabiertos.ayto-fuenlabrada.es
+ckan_site_title: Fuenlabrada Datos Abiertos
+ckan_site_id: fuenlabrada
+ckan_sysadmin_email: datosabiertos@ayto-fuenlabrada.es
+ckan_dir3_code: ""                 # PENDIENTE: código DIR3 oficial del ayuntamiento
+ckan_spatial_uri: http://datos.gob.es/recurso/sector-publico/territorio/Provincia/Madrid
+# Secretos: en host_vars/fuenlabrada/vault.yml cifrado con ansible-vault
+# (ver ../../vault.ejemplo.yml)
