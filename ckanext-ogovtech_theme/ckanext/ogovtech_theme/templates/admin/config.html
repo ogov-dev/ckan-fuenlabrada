@@ -1,0 +1,47 @@
+{% ckan_extends %}
+
+{% block admin_form %}
+  {{ super() }}
+
+  {% set P = 'ckanext.ogovtech_theme.' %}
+  <fieldset class="mt-4">
+    <legend>{{ _('Identidad visual del ayuntamiento') }}</legend>
+    <div class="row">
+      {% for key, label in [
+          ('color_primary', _('Color principal')),
+          ('color_secondary', _('Color secundario')),
+          ('color_accent', _('Color de acento')),
+          ('color_text_on_primary', _('Texto sobre color principal')),
+        ] %}
+        <div class="col-sm-6 col-lg-3">
+          {{ form.input(P ~ key, id='field-ogov-' ~ key, label=label, type='color',
+                        value=data[P ~ key] or h.ogovtech_theme_get(key),
+                        error=errors[P ~ key], attrs={'class': 'form-control form-control-color'}) }}
+        </div>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  {{ form.input(P ~ 'hero_image', id='field-ogov-hero-image', label=_('Imagen de fondo de la portada (URL)'), type='url',
+                value=data[P ~ 'hero_image'], error=errors[P ~ 'hero_image'], placeholder='https://…/fachada.jpg') }}
+
+  <fieldset class="mt-3">
+    <legend>{{ _('Pie de página y contacto') }}</legend>
+    {{ form.input(P ~ 'footer_text', id='field-ogov-footer-text', label=_('Texto del pie'),
+                  value=data[P ~ 'footer_text'], error=errors[P ~ 'footer_text'],
+                  placeholder=_('Ayuntamiento de …')) }}
+    {{ form.textarea(P ~ 'footer_links', id='field-ogov-footer-links', label=_('Enlaces del pie'),
+                     value=data[P ~ 'footer_links'], error=errors[P ~ 'footer_links'],
+                     placeholder='Aviso legal|https://…\nAccesibilidad|/pages/accesibilidad') }}
+    <p class="form-text">{{ _('Un enlace por línea, con el formato Texto|URL.') }}</p>
+    {{ form.textarea(P ~ 'footer_legal_links', id='field-ogov-footer-legal-links', label=_('Enlaces legales (barra inferior)'),
+                     value=data[P ~ 'footer_legal_links'], error=errors[P ~ 'footer_legal_links'],
+                     placeholder='Accesibilidad|https://…\nProtección de datos|https://…\nPolítica de cookies|/pages/cookies') }}
+    {{ form.input(P ~ 'contact_email', id='field-ogov-contact-email', label=_('Correo de contacto'), type='email',
+                  value=data[P ~ 'contact_email'], error=errors[P ~ 'contact_email']) }}
+    {{ form.input(P ~ 'contact_phone', id='field-ogov-contact-phone', label=_('Teléfono'),
+                  value=data[P ~ 'contact_phone'], error=errors[P ~ 'contact_phone']) }}
+    {{ form.input(P ~ 'contact_address', id='field-ogov-contact-address', label=_('Dirección'),
+                  value=data[P ~ 'contact_address'], error=errors[P ~ 'contact_address']) }}
+  </fieldset>
+{% endblock %}

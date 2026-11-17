@@ -1,0 +1,83 @@
+{% ckan_extends %}
+
+{% block primary_content %}
+{%- set home = h.ogovtech_theme_home() -%}
+{%- set hero_image = h.ogovtech_theme_get('hero_image') -%}
+<div role="main" class="ogov-home">
+
+  {# ---------- Hero ---------- #}
+  <section class="ogov-hero"{% if hero_image %} style="--ogov-hero-image: url('{{ hero_image }}')"{% endif %}>
+    <div class="ogov-hero__inner container">
+      <h1 class="ogov-hero__title">{{ g.site_title }}</h1>
+      {% if g.site_description %}<p class="ogov-hero__subtitle">{{ g.site_description }}</p>{% endif %}
+      <form class="ogov-hero__search" action="{{ h.url_for('dataset.search') }}" method="get" role="search">
+        <label for="ogov-home-search" class="visually-hidden">{{ _('Buscar conjuntos de datos') }}</label>
+        <input id="ogov-home-search" type="search" name="q" class="form-control" placeholder="{{ _('Buscar conjuntos de datos…') }}">
+        <button type="submit" class="btn btn-primary"><i class="fa fa-search" aria-hidden="true"></i> {{ _('Buscar') }}</button>
+      </form>
+    </div>
+  </section>
+
+  {# ---------- Cifras ---------- #}
+  <section class="ogov-stats container" aria-label="{{ _('El portal en cifras') }}">
+    {% for icon, value, label, url in [
+        ('fa-database', home.stats.dataset_count, _('Conjuntos de datos'), h.url_for('dataset.search')),
+        ('fa-building', home.stats.organization_count, _('Organizaciones'), h.url_for('organization.index')),
+        ('fa-layer-group', home.stats.group_count, _('Temáticas'), h.url_for('group.index')),
+        ('fa-file-lines', home.formats, _('Formatos'), h.url_for('dataset.search')),
+      ] %}
+      <a class="ogov-stat" href="{{ url }}">
+        <span class="ogov-stat__icon"><i class="fa {{ icon }}" aria-hidden="true"></i></span>
+        <span class="ogov-stat__value">{{ h.SI_number_span(value) if value is number else value }}</span>
+        <span class="ogov-stat__label">{{ label }}</span>
+      </a>
+    {% endfor %}
+  </section>
+
+  {% if g.site_intro_text %}
+  <section class="ogov-section">
+    <div class="container ogov-intro">{{ h.render_markdown(g.site_intro_text) }}</div>
+  </section>
+  {% endif %}
+
+  {# ---------- Temáticas ---------- #}
+  {% if home.groups %}
+  <section class="ogov-section ogov-section--alt">
+    <div class="container">
+      <h2 class="ogov-section__title">{{ _('Temáticas') }}</h2>
+      <div class="ogov-tiles">
+        {% for group in home.groups %}
+          <a class="ogov-tile" href="{{ h.url_for('group.read', id=group.name) }}">
+            {% if group.image_display_url %}<img src="{{ group.image_display_url }}" alt="" class="ogov-tile__img">{% else %}{{ h.ogovtech_group_icon(group.name, 'ogov-tile__icon') }}{% endif %}
+            <span class="ogov-tile__title">{{ group.display_name }}</span>
+            <span class="ogov-tile__count">{{ group.package_count }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ---------- Últimos conjuntos de datos ---------- #}
+  {% if home.datasets %}
+  <section class="ogov-section">
+    <div class="container">
+      <h2 class="ogov-section__title">{{ _('Últimos conjuntos de datos') }}</h2>
+      <div class="ogov-cards">
+        {% for pkg in home.datasets %}
+          <a class="ogov-card" href="{{ h.url_for('dataset.read', id=pkg.name) }}">
+            <span class="ogov-card__org">{{ pkg.organization.title if pkg.organization else '' }}</span>
+            <span class="ogov-card__title">{{ pkg.title or pkg.name }}</span>
+            <span class="ogov-card__text">{{ h.markdown_extract(pkg.notes, extract_length=140) }}</span>
+            <span class="ogov-card__formats">
+              {% for fmt in h.dict_list_reduce(pkg.resources, 'format') %}<span class="ogov-badge">{{ fmt }}</span>{% endfor %}
+            </span>
+          </a>
+        {% endfor %}
+      </div>
+      <p class="text-center mt-4"><a class="btn btn-primary" href="{{ h.url_for('dataset.search') }}">{{ _('Ver todos los conjuntos de datos') }}</a></p>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+# Solo desarrollo: monta el código de las extensiones propias para ver los
+# cambios sin reconstruir la imagen, y activa la recarga de plantillas.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+services:
+  ckan:
+    environment:
+      CKAN_DEBUG: "true"
+      CKAN__DEBUG: "true"
+    volumes:
+      - ../ckanext-ogovtech_theme:/srv/app/src/ckanext-ogovtech_theme
+      - ../ckanext-ogovtech_fixes:/srv/app/src/ckanext-ogovtech_fixes
+      - ../migration:/srv/app/migration
+      - ../connectors:/srv/app/connectors

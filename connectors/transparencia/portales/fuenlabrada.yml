@@ -1,0 +1,36 @@
+# Conector Portal de Transparencia -> CKAN (Fuenlabrada)
+source: https://transparencia.ayto-fuenlabrada.es
+module: 5                      # índice de datos (/data/5)
+lang: es
+organization: ayuntamiento-de-fuenlabrada
+license_id: odc-by
+dataset_prefix: transparencia-
+
+# Tablas que NO se publican en datos abiertos (por ruta o nombre).
+excluir:
+  - politica-de-cookies
+  - accesibilidad
+
+# Grupo de CKAN (de los existentes) y temática NTI según palabras del nombre.
+# Se aplica la primera regla que coincida.
+clasificacion:
+  - si_contiene: [presupuest, gasto, deuda, cuentas, financ, auditoria, endeudamiento, prestamo, pago, tesoreria, economic, control-interno, costes]
+    grupo: hacienda
+    tematica: hacienda
+  - si_contiene: [urban, planeamiento, planes-parciales, plan-especial, planes-de-ordenacion, obras]
+    grupo: urbanismo
+    tematica: urbanismo-infraestructuras
+  - si_contiene: [medioambient, desechos]
+    grupo: medio-ambiente
+    tematica: medio-ambiente
+  - si_contiene: [participacion, asociaciones, juntas, consultas, quejas, sugerencias, gobierno-abierto]
+    grupo: participacion-ciudadana
+    tematica: sector-publico
+  - si_contiene: [subvencion]
+    grupo: economia
+    tematica: economia
+  - si_contiene: [empleo, personal, nomina, retribucion, puestos, convenios-colectivos, absentismo, sindical]
+    grupo: sector-publico
+    tematica: empleo
+grupo_por_defecto: sector-publico
+tematica_por_defecto: sector-publico

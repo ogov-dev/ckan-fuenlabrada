@@ -1,0 +1,6 @@
+docker/.env
+*.pyc
+__pycache__/
+*.egg-info/
+migration/dumps/
+.DS_Store

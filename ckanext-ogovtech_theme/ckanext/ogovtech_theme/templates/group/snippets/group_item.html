@@ -1,0 +1,11 @@
+{% ckan_extends %}
+
+{# Grupos/temáticas: icono de la temática en baldosa azul (estilo "ámbitos"),
+   salvo que el grupo tenga imagen propia subida. #}
+{% block image %}
+  {% if group.image_display_url %}
+    <img src="{{ group.image_display_url }}" alt="" class="media-image img-fluid">
+  {% else %}
+    <span class="ogov-group-badge" aria-hidden="true">{{ h.ogovtech_group_icon(group.name) }}</span>
+  {% endif %}
+{% endblock %}

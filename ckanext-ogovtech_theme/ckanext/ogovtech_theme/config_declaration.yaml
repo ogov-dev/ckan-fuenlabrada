@@ -1,0 +1,45 @@
+version: 1
+groups:
+  - annotation: ckanext-ogovtech_theme (editables desde /ckan-admin/config)
+    options:
+      - key: ckanext.ogovtech_theme.color_primary
+        default: "#003f80"
+        description: Color corporativo principal (cabecera, botones, enlaces).
+        editable: true
+      - key: ckanext.ogovtech_theme.color_secondary
+        default: "#303030"
+        description: Color del pie de página.
+        editable: true
+      - key: ckanext.ogovtech_theme.color_accent
+        default: "#f8b205"
+        description: Color de acento (resaltados, foco).
+        editable: true
+      - key: ckanext.ogovtech_theme.color_text_on_primary
+        default: "#ffffff"
+        description: Color del texto sobre el color principal.
+        editable: true
+      - key: ckanext.ogovtech_theme.hero_image
+        default: ""
+        description: URL de la imagen de fondo de la portada (opcional).
+        editable: true
+      - key: ckanext.ogovtech_theme.footer_legal_links
+        default: ""
+        description: Enlaces legales de la barra inferior (Accesibilidad, Protección de datos…), formato Texto|URL.
+        editable: true
+      - key: ckanext.ogovtech_theme.footer_text
+        default: ""
+        description: Texto libre del pie de página (p. ej. nombre del ayuntamiento).
+        editable: true
+      - key: ckanext.ogovtech_theme.footer_links
+        default: ""
+        description: Enlaces del pie, uno por línea con formato Texto|URL.
+        editable: true
+      - key: ckanext.ogovtech_theme.contact_email
+        default: ""
+        editable: true
+      - key: ckanext.ogovtech_theme.contact_phone
+        default: ""
+        editable: true
+      - key: ckanext.ogovtech_theme.contact_address
+        default: ""
+        editable: true

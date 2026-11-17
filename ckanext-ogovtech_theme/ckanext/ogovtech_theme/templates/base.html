@@ -1,0 +1,19 @@
+{% ckan_extends %}
+
+{% block styles %}
+  {{ super() }}
+  {% asset 'ogovtech_theme/main-css' %}
+{% endblock %}
+
+{% block custom_styles %}
+  {%- set c = h.ogovtech_theme_colors() -%}
+  <style>
+    :root {
+      {%- if c.color_primary %} --ogov-primary: {{ c.color_primary }};{% endif %}
+      {%- if c.color_secondary %} --ogov-secondary: {{ c.color_secondary }};{% endif %}
+      {%- if c.color_accent %} --ogov-accent: {{ c.color_accent }};{% endif %}
+      {%- if c.color_text_on_primary %} --ogov-on-primary: {{ c.color_text_on_primary }};{% endif %}
+    }
+  </style>
+  {{ super() }}
+{% endblock %}

@@ -1,0 +1,2 @@
+recursive-include ckanext/ogovtech_fixes/schemas *
+include ckanext/ogovtech_fixes/config_declaration.yaml

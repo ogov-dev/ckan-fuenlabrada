@@ -1,0 +1,47 @@
+# Migración estándar: portal antiguo de Fuenlabrada -> baseline oGov.tech
+# Solo metadatos de configuración. Los datos NO se guardan en git: el script
+# los descarga a migration/dumps/ (ignorado por git).
+
+source: https://datosabiertos.ayto-fuenlabrada.es
+
+organization:
+  # La organización antigua tiene un identificador heredado de los datos de
+  # ejemplo de CKAN; se renombra.
+  from: nhs-southwark-ccg
+  name: ayuntamiento-de-fuenlabrada
+  title: Ayuntamiento de Fuenlabrada
+
+licenses:
+  # Se mantiene la licencia actual de cada conjunto de datos (odc-by).
+  # Correcciones acordadas:
+  replace:
+    uk-ogl: odc-by          # licencia británica asignada por error
+  # Conjuntos sin licencia en origen:
+  if_empty: odc-by
+
+groups:
+  # Los grupos se migran tal cual (mismo identificador, título y descripción).
+  # La imagen antigua no se migra: el tema pinta el icono común.
+  migrate_images: false
+
+# Temática NTI-RISP (campo `theme`, obligatorio para datos.gob.es).
+# Se deduce de los grupos del dataset; NO sustituye a los grupos.
+theme_by_group:
+  cultura-y-ocio: cultura-ocio
+  demografia: demografia
+  deportes: deporte
+  economia: economia
+  hacienda: hacienda
+  infraestructuras: urbanismo-infraestructuras
+  medio-ambiente: medio-ambiente
+  participacion-ciudadana: sector-publico
+  sector-publico: sector-publico
+  seguridad: seguridad
+  sociedad-y-bienestar: sociedad-bienestar
+  transporte: transporte
+  urbanismo: urbanismo-infraestructuras
+theme_default: sector-publico
+
+language_default: SPA
+
+pages: true

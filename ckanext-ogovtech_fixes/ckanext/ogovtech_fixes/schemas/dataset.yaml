@@ -1,0 +1,186 @@
+scheming_version: 2
+dataset_type: dataset
+about: Esquema común de metadatos oGov.tech (DCAT-AP / DCAT-AP-ES, compatible NTI-RISP)
+about_url: https://github.com/ogovtech
+
+dataset_fields:
+
+- field_name: title
+  label: Título
+  preset: title
+  required: true
+  form_placeholder: p. ej. Calidad del aire en el municipio
+
+- field_name: name
+  label: URL
+  preset: dataset_slug
+  form_placeholder: p. ej. calidad-aire
+
+- field_name: notes
+  label: Descripción
+  required: true
+  form_snippet: markdown.html
+  help_text: Explicación clara del contenido del conjunto de datos.
+
+- field_name: theme
+  label: Temática (sector NTI-RISP)
+  preset: multiple_select
+  required: true
+  select_size: 8
+  sorted_choices: true
+  help_text: Una o varias categorías de la taxonomía de sectores de datos.gob.es.
+  choices:
+  - value: http://datos.gob.es/kos/sector-publico/sector/ciencia-tecnologia
+    label: Ciencia y tecnología
+  - value: http://datos.gob.es/kos/sector-publico/sector/comercio
+    label: Comercio
+  - value: http://datos.gob.es/kos/sector-publico/sector/cultura-ocio
+    label: Cultura y ocio
+  - value: http://datos.gob.es/kos/sector-publico/sector/demografia
+    label: Demografía
+  - value: http://datos.gob.es/kos/sector-publico/sector/deporte
+    label: Deporte
+  - value: http://datos.gob.es/kos/sector-publico/sector/economia
+    label: Economía
+  - value: http://datos.gob.es/kos/sector-publico/sector/educacion
+    label: Educación
+  - value: http://datos.gob.es/kos/sector-publico/sector/empleo
+    label: Empleo
+  - value: http://datos.gob.es/kos/sector-publico/sector/energia
+    label: Energía
+  - value: http://datos.gob.es/kos/sector-publico/sector/hacienda
+    label: Hacienda
+  - value: http://datos.gob.es/kos/sector-publico/sector/industria
+    label: Industria
+  - value: http://datos.gob.es/kos/sector-publico/sector/legislacion-justicia
+    label: Legislación y justicia
+  - value: http://datos.gob.es/kos/sector-publico/sector/medio-ambiente
+    label: Medio ambiente
+  - value: http://datos.gob.es/kos/sector-publico/sector/medio-rural-pesca
+    label: Medio rural
+  - value: http://datos.gob.es/kos/sector-publico/sector/salud
+    label: Salud
+  - value: http://datos.gob.es/kos/sector-publico/sector/sector-publico
+    label: Sector público
+  - value: http://datos.gob.es/kos/sector-publico/sector/seguridad
+    label: Seguridad
+  - value: http://datos.gob.es/kos/sector-publico/sector/sociedad-bienestar
+    label: Sociedad y bienestar
+  - value: http://datos.gob.es/kos/sector-publico/sector/transporte
+    label: Transporte
+  - value: http://datos.gob.es/kos/sector-publico/sector/turismo
+    label: Turismo
+  - value: http://datos.gob.es/kos/sector-publico/sector/urbanismo-infraestructuras
+    label: Urbanismo e infraestructuras
+  - value: http://datos.gob.es/kos/sector-publico/sector/vivienda
+    label: Vivienda
+
+- field_name: tag_string
+  label: Etiquetas
+  preset: tag_string_autocomplete
+  form_placeholder: p. ej. medio ambiente, contaminación
+  help_text: Palabras clave separadas por comas.
+
+- field_name: owner_org
+  label: Organización
+  preset: dataset_organization
+
+- field_name: license_id
+  label: Licencia
+  form_snippet: license.html
+  required: true
+
+- field_name: language
+  label: Idioma
+  preset: multiple_select
+  required: true
+  default: ["http://publications.europa.eu/resource/authority/language/SPA"]
+  choices:
+  - value: http://publications.europa.eu/resource/authority/language/SPA
+    label: Español
+  - value: http://publications.europa.eu/resource/authority/language/CAT
+    label: Català / Valencià
+  - value: http://publications.europa.eu/resource/authority/language/EUS
+    label: Euskara
+  - value: http://publications.europa.eu/resource/authority/language/GLG
+    label: Galego
+  - value: http://publications.europa.eu/resource/authority/language/ENG
+    label: English
+
+- field_name: frequency
+  label: Frecuencia de actualización
+  preset: select
+  choices:
+  - value: http://publications.europa.eu/resource/authority/frequency/CONT
+    label: Continua
+  - value: http://publications.europa.eu/resource/authority/frequency/DAILY
+    label: Diaria
+  - value: http://publications.europa.eu/resource/authority/frequency/WEEKLY
+    label: Semanal
+  - value: http://publications.europa.eu/resource/authority/frequency/MONTHLY
+    label: Mensual
+  - value: http://publications.europa.eu/resource/authority/frequency/QUARTERLY
+    label: Trimestral
+  - value: http://publications.europa.eu/resource/authority/frequency/BIANNUAL
+    label: Semestral
+  - value: http://publications.europa.eu/resource/authority/frequency/ANNUAL
+    label: Anual
+  - value: http://publications.europa.eu/resource/authority/frequency/IRREG
+    label: Irregular
+  - value: http://publications.europa.eu/resource/authority/frequency/NEVER
+    label: Sin actualización prevista
+
+- field_name: temporal_coverage
+  label: Cobertura temporal
+  repeating_subfields:
+    - field_name: start
+      label: Inicio
+      preset: dcat_date
+    - field_name: end
+      label: Fin
+      preset: dcat_date
+
+- field_name: spatial_coverage
+  label: Cobertura geográfica
+  help_text: Si se deja vacía se usa el ámbito del ayuntamiento configurado en el portal.
+  repeating_subfields:
+    - field_name: uri
+      label: URI (p. ej. http://datos.gob.es/recurso/sector-publico/territorio/Provincia/Madrid)
+    - field_name: text
+      label: Nombre
+
+- field_name: contact
+  label: Punto de contacto
+  repeating_label: Contacto
+  repeating_subfields:
+    - field_name: name
+      label: Nombre
+    - field_name: email
+      label: Correo electrónico
+      display_snippet: email.html
+    - field_name: url
+      label: URL
+
+- field_name: conforms_to
+  label: Conforme a (normativa o estándar)
+  preset: multiple_text
+  validators: ignore_missing scheming_multiple_text
+
+resource_fields:
+
+- field_name: url
+  label: URL
+  preset: resource_url_upload
+
+- field_name: name
+  label: Nombre
+  form_placeholder: p. ej. Datos 2026 (CSV)
+
+- field_name: description
+  label: Descripción
+  form_snippet: markdown.html
+
+- field_name: format
+  label: Formato
+  preset: resource_format_autocomplete
+  help_text: Si no se indica se deduce automáticamente.

@@ -1,0 +1,19 @@
+version: 1
+groups:
+  - annotation: ckanext-ogovtech_fixes — federación datos.gob.es
+    options:
+      - key: ckanext.ogovtech.dir3_code
+        default: ""
+        example: L01280407
+        description: Código DIR3 del ayuntamiento (publicador del catálogo en datos.gob.es).
+      - key: ckanext.ogovtech.spatial_uri
+        default: ""
+        example: http://datos.gob.es/recurso/sector-publico/territorio/Provincia/Madrid
+        description: URI de territorio de datos.gob.es para dct:spatial del catálogo y datasets.
+      - key: ckanext.ogovtech.catalog_license
+        default: https://creativecommons.org/licenses/by/4.0/
+        description: Licencia del catálogo (dct:license).
+      - key: ckanext.ogovtech.catalog_issued
+        default: ""
+        example: "2026-11-17"
+        description: Fecha de alta del catálogo (dct:issued).

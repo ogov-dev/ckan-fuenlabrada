@@ -1,0 +1,4 @@
+main-css:
+  output: ogovtech_theme/%(version)s_ogovtech_theme.css
+  contents:
+    - css/ogovtech_theme.css

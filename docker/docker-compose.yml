@@ -1,0 +1,102 @@
+name: ${COMPOSE_PROJECT_NAME:-ogov-ckan}
+
+x-ckan-env: &ckan-env
+  CKAN_SITE_URL: ${CKAN_SITE_URL}
+  CKAN__SITE_TITLE: ${CKAN__SITE_TITLE}
+  CKAN__SITE_ID: ${CKAN__SITE_ID}
+  CKAN_SQLALCHEMY_URL: postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${CKAN_DB}
+  CKAN_DATASTORE_WRITE_URL: postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${DATASTORE_DB}
+  CKAN_DATASTORE_READ_URL: postgresql://${DATASTORE_READONLY_USER}:${DATASTORE_READONLY_PASSWORD}@db/${DATASTORE_DB}
+  CKAN_SOLR_URL: http://solr:8983/solr/ckan
+  CKAN_REDIS_URL: redis://redis:6379/1
+  CKAN_SECRET_KEY: ${CKAN_SECRET_KEY:?Define CKAN_SECRET_KEY en .env}
+  CKAN_JWT_SECRET: ${CKAN_JWT_SECRET:?Define CKAN_JWT_SECRET en .env}
+  CKAN_SYSADMIN_NAME: ${CKAN_SYSADMIN_NAME}
+  CKAN_SYSADMIN_PASSWORD: ${CKAN_SYSADMIN_PASSWORD}
+  CKAN_SYSADMIN_EMAIL: ${CKAN_SYSADMIN_EMAIL}
+  CKAN_SMTP_SERVER: ${CKAN_SMTP_SERVER:-}
+  CKAN_SMTP_USER: ${CKAN_SMTP_USER:-}
+  CKAN_SMTP_PASSWORD: ${CKAN_SMTP_PASSWORD:-}
+  CKAN_SMTP_MAIL_FROM: ${CKAN_SMTP_MAIL_FROM:-}
+  CKANEXT__OGOVTECH__DIR3_CODE: ${CKANEXT__OGOVTECH__DIR3_CODE:-}
+  CKANEXT__OGOVTECH__SPATIAL_URI: ${CKANEXT__OGOVTECH__SPATIAL_URI:-}
+  CKANEXT__OGOVTECH__CATALOG_ISSUED: ${CKANEXT__OGOVTECH__CATALOG_ISSUED:-}
+  # XLoader habla con CKAN por la red interna, sin pasar por el proxy.
+  CKANEXT__XLOADER__SITE_URL: http://ckan:5000
+  TZ: Europe/Madrid
+
+services:
+  ckan:
+    image: ${CKAN_IMAGE:-ogov/ckan:baseline}
+    build:
+      context: ..
+      dockerfile: docker/ckan/Dockerfile
+    platform: linux/amd64
+    environment: *ckan-env
+    depends_on:
+      db: { condition: service_healthy }
+      solr: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - ckan_storage:/var/lib/ckan
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5000/api/3/action/status_show"]
+      interval: 30s
+      timeout: 10s
+      start_period: 300s
+      start_interval: 10s
+      retries: 5
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CKAN_DB: ${CKAN_DB}
+      CKAN_DB_USER: ${CKAN_DB_USER}
+      CKAN_DB_PASSWORD: ${CKAN_DB_PASSWORD}
+      DATASTORE_DB: ${DATASTORE_DB}
+      DATASTORE_READONLY_USER: ${DATASTORE_READONLY_USER}
+      DATASTORE_READONLY_PASSWORD: ${DATASTORE_READONLY_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      retries: 10
+
+  solr:
+    image: ckan/ckan-solr:2.12-solr9
+    platform: linux/amd64
+    volumes:
+      - solr_data:/var/solr
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8983/solr/ckan/admin/ping"]
+      interval: 15s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 10
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      ckan: { condition: service_healthy }
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+volumes:
+  ckan_storage:
+  pg_data:
+  solr_data:

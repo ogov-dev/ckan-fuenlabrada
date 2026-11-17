@@ -1,0 +1,5 @@
+recursive-include ckanext/ogovtech_theme/templates *
+recursive-include ckanext/ogovtech_theme/assets *
+recursive-include ckanext/ogovtech_theme/public *
+recursive-include ckanext/ogovtech_theme/icons *
+include ckanext/ogovtech_theme/config_declaration.yaml

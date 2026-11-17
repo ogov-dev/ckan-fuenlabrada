@@ -1,0 +1,338 @@
+/*
+ * Tema común oGov.tech para CKAN.
+ * Sistema visual alineado con los portales de transparencia de oGov
+ * (modelo: transparencia.ayto-fuenlabrada.es).
+ *
+ * La identidad de cada ayuntamiento llega SOLO por variables CSS
+ * (inyectadas en templates/base.html desde /ckan-admin/config).
+ */
+
+/* ---------- Tipografía (Montserrat, SIL OFL 1.1, alojada en el portal) --- */
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-ext-400.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-ext-500.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-500.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-ext-600.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-600.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-ext-700.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Montserrat"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/ogovtech_theme/fonts/montserrat-latin-700.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* ---------- Variables ------------------------------------------------------ */
+:root {
+  --ogov-primary: #003f80;
+  --ogov-secondary: #303030;      /* pie */
+  --ogov-accent: #f8b205;
+  --ogov-on-primary: #ffffff;
+  --ogov-text: #504747;
+  --ogov-heading: #111827;
+  --ogov-surface-alt: #eef1f6;
+  --ogov-border: #e5e7eb;
+  --ogov-radius: 6px;
+  --ogov-radius-lg: 12px;
+  --ogov-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.08);
+  --ogov-shadow-hover: 0 6px 16px rgba(0,0,0,.12);
+  --ogov-font: "Montserrat", "Source Sans Pro", system-ui, sans-serif;
+
+  --bs-body-font-family: var(--ogov-font);
+  --bs-body-color: var(--ogov-text);
+  --bs-link-color: var(--ogov-primary);
+  --bs-link-color-rgb: 0, 63, 128;
+  --bs-link-hover-color: var(--ogov-primary);
+  --bs-border-radius: var(--ogov-radius);
+}
+
+body {
+  font-family: var(--ogov-font);
+  color: var(--ogov-text);
+  background: #fff;
+}
+h1, h2, h3, h4, h5, h6, .module-heading { font-family: var(--ogov-font); color: var(--ogov-heading); font-weight: 700; }
+a { color: var(--ogov-primary); }
+a:hover { color: var(--ogov-primary); text-decoration: underline; }
+
+/* Foco visible (accesibilidad) */
+a:focus-visible, button:focus-visible, .btn:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--ogov-accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ---------- Botones -------------------------------------------------------- */
+.btn { font-weight: 600; border-radius: var(--ogov-radius); }
+.btn-primary {
+  --bs-btn-bg: var(--ogov-primary);
+  --bs-btn-border-color: var(--ogov-primary);
+  --bs-btn-color: var(--ogov-on-primary);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--ogov-primary) 85%, #000);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--ogov-primary) 85%, #000);
+  --bs-btn-hover-color: var(--ogov-on-primary);
+  --bs-btn-active-bg: color-mix(in srgb, var(--ogov-primary) 75%, #000);
+  --bs-btn-active-border-color: color-mix(in srgb, var(--ogov-primary) 75%, #000);
+}
+.btn-default, .btn-secondary, .btn-outline-primary {
+  --bs-btn-color: var(--ogov-primary);
+  --bs-btn-border-color: var(--ogov-primary);
+  --bs-btn-hover-bg: var(--ogov-primary);
+  --bs-btn-hover-color: var(--ogov-on-primary);
+}
+
+/* ---------- Cabecera ------------------------------------------------------- */
+.account-masthead { background: color-mix(in srgb, var(--ogov-primary) 80%, #000); }
+.account-masthead .account ul li a { color: rgba(255,255,255,.85); }
+.account-masthead .account ul li a:hover { color: #fff; background: rgba(255,255,255,.1); }
+
+.masthead {
+  background: var(--ogov-primary);
+  color: var(--ogov-on-primary);
+  padding: .9rem 0;
+  box-shadow: var(--ogov-shadow);
+  font-weight: 500;
+}
+.masthead .navbar { padding: 0; }
+header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; }
+@media (max-width: 767.98px) { header.masthead hgroup .logo img { max-height: 64px; height: 64px; } }
+.masthead hgroup h1 a, .masthead .site-title a { color: var(--ogov-on-primary); font-weight: 700; }
+.masthead hgroup h2 { color: color-mix(in srgb, var(--ogov-on-primary) 80%, transparent); font-size: .95rem; }
+.masthead .navbar-nav { gap: .25rem; align-items: center; }
+.masthead .navigation .nav-pills li a,
+.masthead .navbar-nav .nav-link,
+.masthead .main-navbar ul li a {
+  color: var(--ogov-on-primary);
+  font-weight: 500;
+  font-size: 1rem;
+  padding: .5rem .75rem;
+  border-radius: var(--ogov-radius);
+  background: transparent;
+  text-decoration: none;
+}
+.masthead .main-navbar ul li a:hover { background: rgba(0,0,0,.08); }
+.masthead .main-navbar ul li.active a {
+  background: #fff;
+  color: var(--ogov-primary);
+  font-weight: 600;
+  box-shadow: var(--ogov-shadow);
+}
+.masthead .site-search { margin-left: 1rem; position: relative; }
+.masthead .site-search input {
+  background: #fff;
+  color: var(--ogov-heading);
+  border: 1px solid var(--ogov-border);
+  border-radius: var(--ogov-radius);
+  font-size: .875rem;
+  min-width: 220px;
+  padding: .5rem .75rem;
+}
+.masthead .site-search .btn { color: var(--ogov-on-primary); }
+.masthead .navbar-toggler { border-color: rgba(255,255,255,.5); }
+
+/* ---------- Títulos de página y migas -------------------------------------- */
+.toolbar .breadcrumb a, .toolbar .breadcrumb li { color: var(--ogov-primary); font-weight: 500; }
+.page-heading, .module-content h1 { color: var(--ogov-primary); }
+
+/* ---------- Bloques/módulos estándar de CKAN ------------------------------- */
+.module-heading {
+  background: var(--ogov-surface-alt);
+  color: var(--ogov-primary);
+  text-transform: uppercase;
+  font-size: .95rem;
+  border-color: var(--ogov-border);
+}
+.wrapper { border-radius: var(--ogov-radius-lg); box-shadow: var(--ogov-shadow); border-color: var(--ogov-border); }
+.nav-item.active > a, .nav-simple > li.active a { background: var(--ogov-primary); color: var(--ogov-on-primary); }
+.dataset-heading a { color: var(--ogov-primary); font-weight: 600; }
+.dataset-item { border-bottom-color: var(--ogov-border); }
+.badge, .label, .dataset-resources li a {
+  background: var(--ogov-primary);
+  color: var(--ogov-on-primary);
+  border-radius: var(--ogov-radius);
+}
+.pagination .page-item.active .page-link { background: var(--ogov-primary); border-color: var(--ogov-primary); }
+.pagination .page-link { color: var(--ogov-primary); }
+
+/* ---------- Portada -------------------------------------------------------- */
+.ogov-home { margin: 0; }
+.homepage .main.hero, .homepage .module-feeds { display: none; }
+
+.ogov-hero {
+  position: relative;
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #fff;
+  background:
+    linear-gradient(color-mix(in srgb, var(--ogov-primary) 55%, transparent), color-mix(in srgb, var(--ogov-primary) 55%, transparent)),
+    var(--ogov-hero-image, linear-gradient(135deg, color-mix(in srgb, var(--ogov-primary) 70%, #fff), var(--ogov-primary)));
+  background-size: cover;
+  background-position: center;
+  padding: 4rem 0 7rem;
+}
+.ogov-hero__inner { position: relative; }
+.ogov-hero__title {
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  text-shadow: 0 2px 12px rgba(0,0,0,.35);
+  margin-bottom: .75rem;
+}
+.ogov-hero__subtitle { font-size: 1.15rem; font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,.35); margin-bottom: 1.75rem; }
+.ogov-hero__search { display: flex; gap: .5rem; max-width: 640px; margin: 0 auto; }
+.ogov-hero__search input { flex: 1; padding: .8rem 1rem; border: 0; border-radius: var(--ogov-radius); box-shadow: var(--ogov-shadow-hover); }
+.ogov-hero__search .btn { padding: .8rem 1.25rem; background: #fff; color: var(--ogov-primary); border: 0; }
+.ogov-hero__search .btn:hover { background: var(--ogov-accent); color: var(--ogov-heading); }
+
+.ogov-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-top: -5rem;
+  position: relative;
+  z-index: 2;
+  max-width: 960px;
+}
+.ogov-stat {
+  display: flex; flex-direction: column; align-items: center; gap: .4rem;
+  background: var(--ogov-primary);
+  color: var(--ogov-on-primary);
+  border-radius: var(--ogov-radius-lg);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: var(--ogov-shadow);
+  transition: transform .3s, box-shadow .3s;
+}
+.ogov-stat:hover { transform: translateY(-2px); box-shadow: var(--ogov-shadow-hover); color: var(--ogov-on-primary); text-decoration: none; }
+.ogov-stat__icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.8); color: var(--ogov-primary); font-size: 1.35rem;
+}
+.ogov-stat__value { font-size: 1.6rem; font-weight: 700; }
+.ogov-stat__label { font-size: .95rem; }
+
+.ogov-section { padding: 3.5rem 0; }
+.ogov-section--alt { background: var(--ogov-surface-alt); }
+.ogov-section__title {
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ogov-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+}
+.ogov-intro { max-width: 820px; text-align: center; font-size: 1.05rem; }
+
+/* Temáticas: baldosas al estilo de los "ámbitos" de transparencia */
+.ogov-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: .75rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.ogov-tile {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem;
+  aspect-ratio: 1 / 1;
+  background: var(--ogov-primary);
+  color: var(--ogov-on-primary);
+  border-radius: var(--ogov-radius-lg);
+  padding: 1rem .75rem;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: var(--ogov-shadow);
+  transition: transform .3s, box-shadow .3s;
+}
+.ogov-tile:hover { transform: translateY(-2px); box-shadow: var(--ogov-shadow-hover); color: var(--ogov-on-primary); text-decoration: none; }
+.ogov-tile__icon { width: 28px; height: 28px; flex: none; }
+.ogov-tile__img { width: 40px; height: 40px; object-fit: contain; filter: brightness(0) invert(1); }
+.ogov-tile__title { font-size: .72rem; font-weight: 700; text-transform: uppercase; line-height: 1.25; }
+.ogov-tile__count {
+  position: absolute; top: .5rem; right: .5rem;
+  min-width: 1.5rem; padding: 0 .35rem; border-radius: 999px;
+  font-size: .7rem; font-weight: 700; line-height: 1.5rem;
+  background: rgba(255,255,255,.18);
+}
+
+/* Listado /group: misma baldosa como imagen del grupo */
+.media-grid .media-item .ogov-group-badge {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; aspect-ratio: 16 / 9;
+  background: var(--ogov-primary); color: var(--ogov-on-primary);
+  border-radius: var(--ogov-radius-lg);
+  margin-bottom: .75rem;
+}
+.ogov-group-badge .ogov-icon { width: 44px; height: 44px; }
+
+.ogov-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
+.ogov-card {
+  display: flex; flex-direction: column; gap: .5rem;
+  background: #fff;
+  border: 1px solid var(--ogov-border);
+  border-radius: var(--ogov-radius-lg);
+  padding: 1.25rem 1.25rem 1rem;
+  text-decoration: none;
+  color: var(--ogov-text);
+  box-shadow: var(--ogov-shadow);
+  transition: transform .3s, box-shadow .3s;
+}
+.ogov-card:hover { transform: translateY(-2px); box-shadow: var(--ogov-shadow-hover); text-decoration: none; color: var(--ogov-text); }
+.ogov-card__org { font-size: .75rem; text-transform: uppercase; font-weight: 600; color: color-mix(in srgb, var(--ogov-text) 75%, #fff); }
+.ogov-card__title { font-weight: 700; color: var(--ogov-primary); font-size: 1.05rem; }
+.ogov-card__text { font-size: .9rem; flex: 1; }
+.ogov-card__formats { display: flex; flex-wrap: wrap; gap: .35rem; }
+.ogov-badge {
+  font-size: .7rem; font-weight: 600; text-transform: uppercase;
+  padding: .15rem .5rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--ogov-primary) 12%, #fff); color: var(--ogov-primary);
+}
+
+/* ---------- Pie ------------------------------------------------------------ */
+.ogov-footer { background: var(--ogov-secondary); color: #fff; padding: 2.5rem 0 0; margin-top: 3rem; border: 0; }
+.ogov-footer a { color: #fff; }
+.ogov-footer a:hover { color: #fff; opacity: .75; }
+.ogov-footer ul { list-style: none; padding: 0; margin: 0; }
+.ogov-footer__main { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 2rem; align-items: start; padding-bottom: 2rem; }
+.ogov-footer__brand img { max-height: 72px; width: auto; }
+.ogov-footer__site { font-weight: 700; font-size: 1.2rem; }
+.ogov-footer__text { margin: .75rem 0 0; font-size: .9rem; }
+.ogov-footer__links ul { text-align: center; display: flex; flex-direction: column; gap: .4rem; font-size: .9rem; }
+.ogov-footer__contact { font-size: .9rem; }
+.ogov-footer__contact li { margin-bottom: .4rem; }
+.ogov-footer__contact .fa { width: 1.2em; opacity: .8; }
+.ogov-footer__contact form label { color: #fff; }
+.ogov-footer__legal {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem 1.5rem;
+  border-top: 1px solid rgba(255,255,255,.15);
+  padding: 1rem 0; font-size: .8rem;
+}
+.ogov-footer__powered {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .6rem;
+  border-top: 1px solid rgba(255,255,255,.15);
+  padding: 1rem; font-size: .8rem;
+}
+.ogov-footer__ogov img { height: 20px; width: auto; }
+.ogov-footer__sep { opacity: .5; }
+.ogov-footer__ckan { font-weight: 700; }
+
+@media (max-width: 767.98px) {
+  .ogov-footer__main { grid-template-columns: 1fr; text-align: center; }
+  .ogov-footer__brand, .ogov-footer__contact { justify-self: center; }
+  .ogov-hero__search { flex-direction: column; }
+  .masthead .site-search { margin: .75rem 0 0; }
+  .masthead .main-navbar ul li a { display: block; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ogov-stat, .ogov-tile, .ogov-card { transition: none; }
+  .ogov-stat:hover, .ogov-tile:hover, .ogov-card:hover { transform: none; }
+}
