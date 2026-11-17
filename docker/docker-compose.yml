@@ -4,15 +4,16 @@ x-ckan-env: &ckan-env
   CKAN_SITE_URL: ${CKAN_SITE_URL}
   CKAN__SITE_TITLE: ${CKAN__SITE_TITLE}
   CKAN__SITE_ID: ${CKAN__SITE_ID}
-  CKAN_SQLALCHEMY_URL: postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${CKAN_DB}
-  CKAN_DATASTORE_WRITE_URL: postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD}@db/${DATASTORE_DB}
-  CKAN_DATASTORE_READ_URL: postgresql://${DATASTORE_READONLY_USER}:${DATASTORE_READONLY_PASSWORD}@db/${DATASTORE_DB}
+  CKAN_SQLALCHEMY_URL: postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD:?Define CKAN_DB_PASSWORD en .env}@db/${CKAN_DB}
+  CKAN_DATASTORE_WRITE_URL: postgresql://${CKAN_DB_USER}:${CKAN_DB_PASSWORD:?Define CKAN_DB_PASSWORD en .env}@db/${DATASTORE_DB}
+  CKAN_DATASTORE_READ_URL: postgresql://${DATASTORE_READONLY_USER}:${DATASTORE_READONLY_PASSWORD:?Define DATASTORE_READONLY_PASSWORD en .env}@db/${DATASTORE_DB}
   CKAN_SOLR_URL: http://solr:8983/solr/ckan
   CKAN_REDIS_URL: redis://redis:6379/1
   CKAN_SECRET_KEY: ${CKAN_SECRET_KEY:?Define CKAN_SECRET_KEY en .env}
   CKAN_JWT_SECRET: ${CKAN_JWT_SECRET:?Define CKAN_JWT_SECRET en .env}
+  OGOV_ENV: ${OGOV_ENV:-production}
   CKAN_SYSADMIN_NAME: ${CKAN_SYSADMIN_NAME}
-  CKAN_SYSADMIN_PASSWORD: ${CKAN_SYSADMIN_PASSWORD}
+  CKAN_SYSADMIN_PASSWORD: ${CKAN_SYSADMIN_PASSWORD:?Define CKAN_SYSADMIN_PASSWORD en .env}
   CKAN_SYSADMIN_EMAIL: ${CKAN_SYSADMIN_EMAIL}
   CKAN_SMTP_SERVER: ${CKAN_SMTP_SERVER:-}
   CKAN_SMTP_USER: ${CKAN_SMTP_USER:-}
@@ -50,15 +51,15 @@ services:
       retries: 5
 
   db:
-    image: postgres:16-alpine
+    image: postgres:16.16-alpine@sha256:81e77a4833487b8132fe4b00bedd39dc3f74b8641e387f19312a48f7de218c2e
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
       CKAN_DB: ${CKAN_DB}
       CKAN_DB_USER: ${CKAN_DB_USER}
-      CKAN_DB_PASSWORD: ${CKAN_DB_PASSWORD}
+      CKAN_DB_PASSWORD: ${CKAN_DB_PASSWORD:?Define CKAN_DB_PASSWORD en .env}
       DATASTORE_DB: ${DATASTORE_DB}
       DATASTORE_READONLY_USER: ${DATASTORE_READONLY_USER}
-      DATASTORE_READONLY_PASSWORD: ${DATASTORE_READONLY_PASSWORD}
+      DATASTORE_READONLY_PASSWORD: ${DATASTORE_READONLY_PASSWORD:?Define DATASTORE_READONLY_PASSWORD en .env}
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./postgres:/docker-entrypoint-initdb.d:ro
@@ -69,7 +70,7 @@ services:
       retries: 10
 
   solr:
-    image: ckan/ckan-solr:2.12-solr9
+    image: ckan/ckan-solr:2.12-solr9.9@sha256:c8208fdf5effd2bf692169d73cc53a1bdfe07988412810ace26cdb7a7b01373f
     platform: linux/amd64
     volumes:
       - solr_data:/var/solr
@@ -80,7 +81,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.12-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -88,7 +89,7 @@ services:
       retries: 10
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     depends_on:
       ckan: { condition: service_healthy }
     ports:

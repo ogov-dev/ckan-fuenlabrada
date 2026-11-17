@@ -1,6 +1,7 @@
 # Baseline CKAN oGov.tech
 # Todas las versiones están fijadas: ver VERSIONS.md en la raíz del repositorio.
-ARG CKAN_IMAGE=ckan/ckan-base:2.12.1
+# Etiqueta exacta + digest: la imagen base no puede cambiar sin un commit.
+ARG CKAN_IMAGE=ckan/ckan-base:2.12.1@sha256:da036b38a31f1e35c87ba1b099dd78d53c02e6585beafdac2cfe963571499c1c
 FROM ${CKAN_IMAGE} AS baseline
 
 ARG SCHEMING_REF=release-3.1.0
@@ -72,8 +73,10 @@ RUN ckan config-tool ${CKAN_INI} \
         "ckanext.pages.allow_html=false" \
         "ckanext.pages.editor=ckeditor"
 
+COPY --chmod=0755 docker/ckan/ogov-start.sh /srv/app/ogov-start.sh
 RUN chown ckan:ckan-sys ${CKAN_INI}
 USER ckan
+CMD ["/srv/app/ogov-start.sh"]
 
 # =============================================================================
 # Etapa de pruebas (no se despliega): baseline + herramientas de test.

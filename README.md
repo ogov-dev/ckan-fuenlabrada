@@ -94,10 +94,23 @@ docker exec -w /srv/app/connectors/transparencia -e CKAN_URL=http://localhost:50
 | ckanext-dcat | 2.4.5 (corrige 2 avisos de seguridad de 2.4.4) |
 | ckanext-xloader | 2.6.0 (2.4.0 no soporta CKAN 2.12) |
 | ckanext-pages | commit `28eba99` (soporte CKAN 2.12, sin versión publicada) |
-| PostgreSQL | 16 (alpine) |
-| Solr | `ckan/ckan-solr:2.12-solr9` |
-| Redis | 7 (alpine) |
-| Nginx | 1.27 (alpine) |
+| PostgreSQL | 16.16 (`postgres:16.16-alpine@sha256:81e77a48…`) |
+| Solr | 9.9.0 (`ckan/ckan-solr:2.12-solr9.9@sha256:c8208fdf…`) |
+| Redis | 7.4.12 (`redis:7.4.12-alpine@sha256:7f7d30b7…`) |
+| Nginx | 1.27.5 (`nginx:1.27.5-alpine@sha256:65645c7b…`) |
+
+Todas las imágenes se fijan por etiqueta exacta **y digest** (`docker/docker-compose.yml`,
+`tests/docker-compose.yml`, `ARG CKAN_IMAGE` del Dockerfile): no pueden cambiar sin un commit.
+
+## Secretos
+
+- Nunca dentro de la imagen ni en git: llegan por el `.env` de cada instancia (en
+  Ansible, cifrado con `ansible-vault`). `.dockerignore` excluye `.env`, `.git` y volcados.
+- `docker compose` no arranca si falta una contraseña obligatoria.
+- `ogov-start.sh` valida los secretos **antes** de inicializar CKAN y se niega a arrancar
+  con valores cortos o de ejemplo (`OGOV_ENV=development` los rebaja a avisos, solo en local).
+- `CKAN_SECRET_KEY` y `CKAN_JWT_SECRET` fijos por instancia: los tokens de API y las
+  sesiones sobreviven a los redespliegues.
 
 Recursos de terceros incluidos en el tema: fuente Montserrat (SIL OFL 1.1) e
 iconos Heroicons (MIT); sus licencias están junto a los ficheros.
