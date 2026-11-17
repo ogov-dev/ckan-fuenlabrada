@@ -31,10 +31,22 @@ check_secret CKAN_SECRET_KEY 32
 check_secret CKAN_JWT_SECRET 32
 check_secret CKAN_SYSADMIN_PASSWORD 12
 for url_var in CKAN_SQLALCHEMY_URL CKAN_DATASTORE_WRITE_URL CKAN_DATASTORE_READ_URL; do
-    if printf '%s' "${!url_var:-}" | grep -qiE ':(cambia|changeme|pass|password)[^@]*@'; then
+    # Contraseña exactamente igual a un valor de ejemplo conocido (o que empiece por "cambia")
+    if printf '%s' "${!url_var:-}" | grep -qiE ':(cambia[^@]*|changeme|pass|password|ckan|postgres)@'; then
         fail "$url_var usa una contraseña de ejemplo"
     fi
 done
+
+# CKAN 2.12 carga todas las variables CKAN_* en un ConfigParser con
+# interpolación: un "%" en cualquiera de ellas impide arrancar. Siempre es error.
+while IFS='=' read -r name _; do
+    case "$name" in CKAN_*)
+        if printf '%s' "${!name}" | grep -q '%'; then
+            echo "[ogov] ERROR: $name contiene '%', que CKAN no admite en variables CKAN_* (usa el panel de administración para textos con %)" >&2
+            errors=$((errors + 1))
+        fi;;
+    esac
+done < <(env)
 
 if [ "$errors" -gt 0 ]; then
     echo "[ogov] $errors problema(s) de secretos: no se arranca. Revisa el .env de la instancia." >&2

@@ -101,3 +101,44 @@ def test_portada_registra_errores_sin_romperse(app, monkeypatch, caplog):
     with caplog.at_level("ERROR"):
         assert app.get("/").status_code == 200
     assert "no se pudieron obtener los datasets" in caplog.text
+
+
+@pytest.mark.parametrize("valor", ["https://ayto.es/fachada.jpg", "/uploads/hero.png", "", None])
+def test_safe_url_valida(valor):
+    assert theme.safe_url(valor, {}) == (valor.strip() if valor else valor)
+
+
+@pytest.mark.parametrize("valor", [
+    "x'); background:url(https://mal.example/x", 'https://a.es/"onload', "javascript:alert(1)",
+    "https://a.es/con espacio.jpg", "data:image/png;base64,AAAA", "https://a.es/x)y",
+])
+def test_safe_url_rechaza_inyeccion(valor):
+    with pytest.raises(tk.Invalid):
+        theme.safe_url(valor, {})
+
+
+@pytest.mark.parametrize("valor,ok", [("info@ayto.es", True), ("", True), ("sin-arroba", False), ("a@b", False)])
+def test_email(valor, ok):
+    if ok:
+        assert theme.email(valor, {}) == valor
+    else:
+        with pytest.raises(tk.Invalid):
+            theme.email(valor, {})
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+def test_config_rechaza_hero_malicioso():
+    sysadmin = factories.Sysadmin()
+    with pytest.raises(tk.ValidationError) as e:
+        helpers.call_action("config_option_update", {"user": sysadmin["name"]},
+                            **{"ckanext.ogovtech_theme.hero_image": "x'); color:red; ('"})
+    assert "ckanext.ogovtech_theme.hero_image" in e.value.error_dict
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+@pytest.mark.ckan_config("WTF_CSRF_ENABLED", False)
+def test_formulario_admin_muestra_error(app):
+    sysadmin = factories.SysadminWithToken()
+    r = app.post("/ckan-admin/config", headers={"Authorization": sysadmin["token"]},
+                 data={"ckanext.ogovtech_theme.color_primary": "azul", "save": ""})
+    assert "Introduce un color hexadecimal" in r.body

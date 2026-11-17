@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -90,7 +91,8 @@ class Source:
             if fs.get("dynamic_entity_uuid") != uuid:
                 return []
             comps = fs["structure"]["fields"]["components"]
-        except Exception:
+        except Exception as e:
+            log(f"  aviso: sin esquema del visor {route} ({type(e).__name__}); se usan claves internas")
             return []
         out = []
         for c in comps:
@@ -192,36 +194,49 @@ def serialize(labels: list[str], rows: list[list[str]]) -> tuple[bytes, bytes]:
 
 
 VIEWER_RESOURCE = "Visor en el Portal de Transparencia"
+# Huella del contenido publicado. Campo propio: XLoader sobrescribe "hash".
+HASH_FIELD = "ogov_content_sha256"
 
 
-def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]]) -> None:
-    """Crea o actualiza el dataset y sus tres recursos (idempotente: por nombre)."""
+def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]]) -> int:
+    """Crea o actualiza el dataset y sus tres recursos (idempotente: por nombre).
+
+    Solo sube CSV/JSON si su contenido cambió (huella SHA-256 en ``HASH_FIELD``).
+    Devuelve el número de ficheros subidos."""
     try:
         dst.action.package_show(id=pkg["name"])
         dst.action.package_patch(id=pkg["name"], **pkg)
     except NotFound:
         dst.action.package_create(**pkg)
-    current = {r["name"]: r["id"] for r in dst.action.package_show(id=pkg["name"])["resources"]}
+    current = {r["name"]: r for r in dst.action.package_show(id=pkg["name"])["resources"]}
     csv_bytes, json_bytes = serialize(labels, rows)
     title = pkg["title"]
+    uploaded = 0
     for rname, fmt, fname, content in ((f"{title} (CSV)", "CSV", f"{slug}.csv", csv_bytes),
                                        (f"{title} (JSON)", "JSON", f"{slug}.json", json_bytes)):
-        data = {"package_id": pkg["name"], "name": rname, "format": fmt, "url": fname}
-        if rname in current:
-            data["id"] = current[rname]
-        dst.call_action("resource_update" if rname in current else "resource_create", data,
+        digest = hashlib.sha256(content).hexdigest()
+        existing = current.get(rname)
+        if existing and existing.get(HASH_FIELD) == digest:
+            continue  # sin cambios: no se resube ni se reprocesa en XLoader
+        data = {"package_id": pkg["name"], "name": rname, "format": fmt, "url": fname, HASH_FIELD: digest}
+        if existing:
+            data["id"] = existing["id"]
+        dst.call_action("resource_update" if existing else "resource_create", data,
                         files={"upload": (fname, io.BytesIO(content))})
+        uploaded += 1
     vdata = {"package_id": pkg["name"], "name": VIEWER_RESOURCE, "format": "HTML", "url": pkg["url"]}
-    if VIEWER_RESOURCE in current:
-        dst.action.resource_update(id=current[VIEWER_RESOURCE], **vdata)
-    else:
+    viewer = current.get(VIEWER_RESOURCE)
+    if not viewer:
         dst.action.resource_create(**vdata)
+    elif viewer.get("url") != pkg["url"]:
+        dst.action.resource_update(id=viewer["id"], **vdata)
+    return uploaded
 
 
 def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict[str, int]:
     """Recorre las tablas del portal. Con ``dst=None`` no escribe (dry-run)."""
     excluded = {slugify(x) for x in cfg.get("excluir", [])}
-    stats = {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 0}
+    stats = {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 0}
     for ent in src.entities(cfg.get("module", 5)):
         name = ent["name"].get(src.lang) or next(iter(ent["name"].values()))
         route = ent.get("route") or "/" + slugify(name)
@@ -244,7 +259,8 @@ def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict[str, 
             stats["publicadas"] += 1
             continue
         try:
-            publish(dst, build_package(name, slug, route, src.base, cfg), slug, labels, rows)
+            stats["ficheros_subidos"] += publish(dst, build_package(name, slug, route, src.base, cfg),
+                                                 slug, labels, rows)
             stats["publicadas"] += 1
         except Exception as e:  # registrar y seguir con el resto de tablas
             stats["errores"] += 1
@@ -270,7 +286,8 @@ def main(argv: list[str] | None = None) -> int:
         dst = RemoteCKAN(url, apikey=token, user_agent=UA)
     stats = run(cfg, src, dst, a.solo)
     log(f"[transparencia] {stats['publicadas']} tablas publicadas, {stats['vacias']} vacías, "
-        f"{stats['excluidas']} excluidas, {stats['errores']} con error")
+        f"{stats['excluidas']} excluidas, {stats['errores']} con error, "
+        f"{stats['ficheros_subidos']} ficheros subidos (el resto sin cambios)")
     return 1 if stats["errores"] else 0
 
 

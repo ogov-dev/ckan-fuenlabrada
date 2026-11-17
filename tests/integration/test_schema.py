@@ -38,9 +38,16 @@ class TestEsquema:
         with pytest.raises(logic.ValidationError):
             _create(frequency="cada-tanto")
 
+    def test_correo_de_contacto_validado(self):
+        with pytest.raises(logic.ValidationError) as e:
+            _create(contact=[{"name": "Ana", "email": "no-es-correo"}])
+        assert "contact" in e.value.error_dict
+        assert _create(name="ok-contacto", contact=[{"name": "Ana", "email": "ana@ayto.es"}])["contact"][0]["email"] == "ana@ayto.es"
+
     def test_esquema_es_el_comun(self):
         schema = helpers.call_action("scheming_dataset_schema_show", type="dataset")
         assert "ogov" in schema["about"].lower()
+        assert schema["about_url"] == "https://github.com/ogov-dev/ckan-fuenlabrada"
         nombres = [f["field_name"] for f in schema["dataset_fields"]]
         for campo in ("theme", "language", "frequency", "temporal_coverage", "spatial_coverage", "contact"):
             assert campo in nombres

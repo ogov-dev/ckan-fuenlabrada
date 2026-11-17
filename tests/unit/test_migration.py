@@ -250,6 +250,15 @@ def test_export_detecta_fallos_y_reutiliza(cfg, monkeypatch):
     assert rep2.stats["ficheros_reutilizados"] >= 1
 
 
+def test_export_avisa_de_otras_organizaciones(cfg):
+    src = _source_ckan([])
+    src.handlers["package_search"] = lambda d: {"count": 2, "results": [
+        dataset(name="propio", organization={"name": "vieja"}), dataset(name="ajeno", organization={"name": "otra"})]}
+    rep = m.cmd_export(cfg, src=src, session=FakeSession({}))
+    assert rep.ok
+    assert [(i.level, i.dataset) for i in rep.warnings] == [(m.WARNING, "ajeno")]
+
+
 def test_export_error_si_falta_organizacion(cfg):
     cfg["organization"]["from"] = "otra"
     rep = m.cmd_export(cfg, src=_source_ckan([]), session=FakeSession({}))

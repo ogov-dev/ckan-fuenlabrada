@@ -53,8 +53,14 @@ FORMAT_MIME = {
     "KML": "application/vnd.google-earth.kml+xml",
     "SHP": "application/x-shapefile",
     "TSV": "text/tab-separated-values",
-    "API": "application/json",
 }
+_MIME = __import__("re").compile(r"^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$")
+
+
+def clean_mime(value: str | None) -> str | None:
+    """Tipo MIME sin parámetros (``text/csv; charset=utf-8`` -> ``text/csv``), o None si no es válido."""
+    mime = (value or "").split(";")[0].strip().lower()
+    return mime if _MIME.match(mime) else None
 
 
 def _cfg(key: str, default: str = "") -> str:
@@ -143,9 +149,9 @@ class DCATAPESProfile(RDFProfile):
         for res in dataset_dict.get("resources", []):
             dist = URIRef(resource_uri(res))
             fmt = (res.get("format") or "").strip()
-            mime = (res.get("mimetype") or "").strip() or FORMAT_MIME.get(fmt.upper())
+            mime = clean_mime(res.get("mimetype")) or FORMAT_MIME.get(fmt.upper())
             if not mime and res.get("url"):
-                mime = mimetypes.guess_type(res["url"])[0]
+                mime = clean_mime(mimetypes.guess_type(res["url"])[0])
             if not mime:
                 continue
             for o in list(g.objects(dist, DCT["format"])):

@@ -294,6 +294,10 @@ def cmd_export(cfg: dict, src=None, session: requests.Session | None = None) -> 
 
     for ds in datasets:
         rep.count("datasets")
+        org_name = (ds.get("organization") or {}).get("name")
+        if org_name != cfg["organization"]["from"]:
+            rep.warning(f"pertenece a la organización '{org_name}', no a '{cfg['organization']['from']}': "
+                        f"se importará en '{cfg['organization']['name']}'", dataset=ds["name"])
         for res in ds["resources"]:
             rep.count("recursos")
             res.pop("_file", None)

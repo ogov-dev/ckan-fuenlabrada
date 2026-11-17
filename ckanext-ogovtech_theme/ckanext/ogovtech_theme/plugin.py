@@ -65,6 +65,30 @@ def footer_links_validator(value: Any, context: Any) -> Any:
     return value
 
 
+_SAFE_URL = re.compile(r"^(https?://|/)[^\s'\"()<>\\]+$")
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def safe_url(value: Any, context: Any) -> Any:
+    """URL http(s) o ruta local, sin caracteres que permitan salir de un
+    atributo HTML o de ``url()`` en CSS (se usa en el estilo del hero)."""
+    if value in (None, ""):
+        return value
+    value = str(value).strip()
+    if not _SAFE_URL.match(value):
+        raise tk.Invalid(tk._("Introduce una URL http(s):// o una ruta que empiece por /, sin espacios ni comillas"))
+    return value
+
+
+def email(value: Any, context: Any) -> Any:
+    if value in (None, ""):
+        return value
+    value = str(value).strip()
+    if not _EMAIL.match(value):
+        raise tk.Invalid(tk._("Introduce un correo electrónico válido"))
+    return value
+
+
 # --- helpers -----------------------------------------------------------------
 
 def ogovtech_theme_get(key: str, default: str = "") -> str:
@@ -133,6 +157,8 @@ class OgovtechThemePlugin(p.SingletonPlugin):
             schema[PREFIX + key] = [ignore_missing, unicode_safe]
         schema[PREFIX + "footer_links"].append(footer_links_validator)
         schema[PREFIX + "footer_legal_links"].append(footer_links_validator)
+        schema[PREFIX + "hero_image"].append(safe_url)
+        schema[PREFIX + "contact_email"].append(email)
         return schema
 
     # ITemplateHelpers
@@ -150,5 +176,7 @@ class OgovtechThemePlugin(p.SingletonPlugin):
         return {
             "ogovtech_hex_color": hex_color,
             "ogovtech_footer_links": footer_links_validator,
+            "ogovtech_safe_url": safe_url,
+            "ogovtech_email": email,
         }
 

@@ -44,7 +44,8 @@ connectors/transparencia/   # sincroniza datos del Portal de Transparencia oGov 
 migration/                  # migración estándar de portales existentes
   migrate.py
   portales/<ayto>.yml       # (en producción, en ogov-ckan-despliegues)
-  dumps/                    # volcados descargados — ignorado por git
+                            # volcados e informes: $OGOV_TOOLS_DATA_DIR/migration
+                            # (en la imagen, dentro del volumen /var/lib/ckan); nunca en git
 ansible/                    # despliegue de instancias independientes (rol "ckan")
 tests/
   unit/                     # tests unitarios (migración, conector, iconos, arranque)
@@ -147,8 +148,31 @@ Todas las imágenes se fijan por etiqueta exacta **y digest** (`docker/docker-co
 - `docker compose` no arranca si falta una contraseña obligatoria.
 - `ogov-start.sh` valida los secretos **antes** de inicializar CKAN y se niega a arrancar
   con valores cortos o de ejemplo (`OGOV_ENV=development` los rebaja a avisos, solo en local).
+- Ningún valor `CKAN_*` puede contener `%`: CKAN 2.12 interpola esas variables y no
+  arrancaría. El arranque y el rol de Ansible lo rechazan; los textos con `%` se
+  configuran desde el panel de administración.
+- El token de XLoader se regenera en cada contenedor y se revocan los anteriores.
 - `CKAN_SECRET_KEY` y `CKAN_JWT_SECRET` fijos por instancia: los tokens de API y las
   sesiones sobreviven a los redespliegues.
 
 Recursos de terceros incluidos en el tema: fuente Montserrat (SIL OFL 1.1) e
 iconos Heroicons (MIT); sus licencias están junto a los ficheros.
+
+## Pendiente antes de producción
+
+Decisiones de oGov / del ayuntamiento:
+
+- Código **DIR3** oficial de cada ayuntamiento (`ckan_dir3_code`; vacío en el inventario de ejemplo).
+- Si las tablas de transparencia con datos personales (Declaración de la Renta, de Bienes,
+  Nóminas…) se publican también como datos abiertos (`excluir` en `connectors/.../portales/*.yml`).
+- Licencia de los datos del conector de transparencia (ahora `odc-by`) y de los 2 datasets
+  de Fuenlabrada que no tenían licencia en origen (ahora `odc-by`).
+- Alcance del tema rehecho frente a la oferta base de Solucionex.
+
+Comprobaciones aún no realizadas:
+
+- Validar el RDF del catálogo con el validador de datos.gob.es.
+- Despliegue con Ansible por SSH contra una máquina de preproducción (solo probado en Docker local).
+- HTTPS / certificados (responsabilidad de la infraestructura según el anexo técnico).
+- Registro de imágenes, CI y ejecución programada del conector (trabajo nuevo, fuera de esta entrega).
+- Actualizaciones de versión de CKAN sobre una instancia con datos (no probadas).

@@ -12,6 +12,30 @@
     quiet: true
   no_log: true
 
+- name: Comprobar que ningún valor rompe el .env ni la configuración de CKAN
+  # Comilla simple o salto de línea rompen el .env; "%" impide arrancar a CKAN
+  # (interpola todas las variables CKAN_*).
+  ansible.builtin.assert:
+    that: "item is string and \"'\" not in item and '\n' not in item and '%' not in item"
+    fail_msg: "Hay un valor con comilla simple, salto de línea o '%' en la configuración de {{ ckan_instance_name }}"
+    quiet: true
+  loop:
+    - "{{ ckan_site_title }}"
+    - "{{ ckan_site_url }}"
+    - "{{ ckan_site_id }}"
+    - "{{ ckan_sysadmin_email }}"
+    - "{{ ckan_dir3_code }}"
+    - "{{ ckan_spatial_uri }}"
+    - "{{ ckan_catalog_issued }}"
+    - "{{ ckan_image }}"
+    - "{{ vault_ckan_secret_key }}"
+    - "{{ vault_ckan_jwt_secret }}"
+    - "{{ vault_ckan_sysadmin_password }}"
+    - "{{ vault_postgres_password }}"
+    - "{{ vault_ckan_db_password }}"
+    - "{{ vault_datastore_ro_password }}"
+  no_log: true
+
 - name: Comprobar que el servidor tiene Docker y Compose (lo aporta la infraestructura)
   ansible.builtin.command: docker compose version
   changed_when: false

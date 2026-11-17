@@ -11,7 +11,7 @@ from ckan.tests import factories
 from ckanext.dcat.processors import RDFParser, RDFSerializer
 from ckanext.dcat.profiles import DCAT, DCT
 
-from ckanext.ogovtech_fixes.profiles import DIR3_BASE, THEME_TAXONOMY
+from ckanext.ogovtech_fixes.profiles import DIR3_BASE, THEME_TAXONOMY, clean_mime
 
 PROFILES = ["euro_dcat_ap_2", "euro_dcat_ap_scheming", "dcat_ap_es"]
 NTI = "http://datos.gob.es/kos/sector-publico/sector/"
@@ -70,6 +70,16 @@ class TestDataset:
         assert str(next(g.objects(imt, RDF.value))) == "text/csv"
         assert str(next(g.objects(imt, RDFS.label))) == "CSV"
 
+    def test_mime_con_parametros_y_api(self):
+        ds = _dataset(resources=[
+            {"url": "https://example.org/a.csv", "format": "CSV", "name": "A", "mimetype": "text/csv; charset=utf-8"},
+            {"url": "https://api.example.org/v1", "format": "API", "name": "B"},
+        ])
+        g, ref = _graph(ds)
+        media = {str(o) for o in g.objects(None, DCAT.mediaType)}
+        assert media == {"https://www.iana.org/assignments/media-types/text/csv"}
+        assert all(" " not in m and ";" not in m for m in media)
+
     def test_licencia_en_dataset_y_distribucion(self):
         odc_by = URIRef("https://opendatacommons.org/licenses/by/1-0/")
         g, ref = _graph(_dataset())
@@ -121,3 +131,11 @@ def test_dcat_antes_que_scheming(ckan_config):
     plugins = ckan_config["ckan.plugins"]
     plugins = plugins.split() if isinstance(plugins, str) else list(plugins)
     assert plugins.index("dcat") < plugins.index("scheming_datasets")
+
+
+@pytest.mark.parametrize("entrada,salida", [
+    ("text/csv", "text/csv"), ("text/csv; charset=utf-8", "text/csv"), ("Application/JSON", "application/json"),
+    ("", None), (None, None), ("no es mime", None), ("text/ html", None),
+])
+def test_clean_mime(entrada, salida):
+    assert clean_mime(entrada) == salida

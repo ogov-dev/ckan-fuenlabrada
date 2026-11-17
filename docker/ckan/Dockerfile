@@ -1,5 +1,5 @@
 # Baseline CKAN oGov.tech
-# Todas las versiones están fijadas: ver VERSIONS.md en la raíz del repositorio.
+# Todas las versiones están fijadas: ver "Versiones fijadas" en el README.
 # Etiqueta exacta + digest: la imagen base no puede cambiar sin un commit.
 ARG CKAN_IMAGE=ckan/ckan-base:2.12.1@sha256:da036b38a31f1e35c87ba1b099dd78d53c02e6585beafdac2cfe963571499c1c
 FROM ${CKAN_IMAGE} AS baseline
@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir -e ${SRC_DIR}/ckanext-ogovtech_theme \
 # --- Herramientas: migración estándar y conectores ---------------------------
 # Disponibles en todos los entornos (no solo en desarrollo), con dependencias
 # fijadas. Los volcados e informes se escriben en el almacenamiento persistente
-# (${CKAN_STORAGE_PATH}/migration), nunca dentro de la imagen.
+# ($OGOV_TOOLS_DATA_DIR, dentro del volumen de /var/lib/ckan), nunca en la imagen.
 COPY tools-requirements.txt /srv/app/tools-requirements.txt
 RUN pip install --no-cache-dir -r /srv/app/tools-requirements.txt
 COPY migration /srv/app/migration
@@ -63,6 +63,7 @@ RUN ckan config-tool ${CKAN_INI} \
         "ckan.locale_default=es" \
         "ckan.locales_offered=es en" \
         "ckan.auth.public_user_details=false" \
+        "ckan.max_resource_size=100" \
         "licenses_group_url=file://${SRC_DIR}/ckanext-ogovtech_fixes/ckanext/ogovtech_fixes/schemas/licenses.json" \
         "scheming.dataset_schemas=ckanext.ogovtech_fixes:schemas/dataset.yaml" \
         "scheming.presets=ckanext.scheming:presets.json ckanext.dcat.schemas:presets.yaml" \

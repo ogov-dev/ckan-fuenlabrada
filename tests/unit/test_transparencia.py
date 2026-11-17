@@ -167,6 +167,28 @@ def test_publish_crea_y_luego_actualiza_sin_duplicar():
     assert "package_patch" in dst.calls
 
 
+def test_publish_no_resube_si_no_cambia():
+    dst = FakeCKAN()
+    pkg = t.build_package("Contratos", "contratos", "/contratos", BASE, CFG)
+    assert t.publish(dst, pkg, "contratos", ["A"], [["1"]]) == 2
+    dst.calls.clear()
+    assert t.publish(dst, pkg, "contratos", ["A"], [["1"]]) == 0          # mismo contenido
+    assert "resource_update" not in dst.calls and "resource_create" not in dst.calls
+    assert t.publish(dst, pkg, "contratos", ["A"], [["1"], ["2"]]) == 2   # cambia -> CSV y JSON
+    res = dst.pkgs["transparencia-contratos"]["resources"]
+    assert all(len(r[t.HASH_FIELD]) == 64 for r in res[:2])
+
+
+def test_publish_ignora_hash_sobrescrito_por_xloader():
+    """XLoader reescribe "hash"; la comparación usa el campo propio."""
+    dst = FakeCKAN()
+    pkg = t.build_package("Contratos", "contratos", "/contratos", BASE, CFG)
+    t.publish(dst, pkg, "contratos", ["A"], [["1"]])
+    for r in dst.pkgs["transparencia-contratos"]["resources"]:
+        r["hash"] = "otro-valor-de-xloader"
+    assert t.publish(dst, pkg, "contratos", ["A"], [["1"]]) == 0
+
+
 class _FakeSource(t.Source):
     def __init__(self, ents, recs):
         super().__init__(BASE)
@@ -191,7 +213,7 @@ RECS = {"1": [{"data": {"k": {"es": "x"}}}]}
 def test_run_estadisticas(monkeypatch):
     monkeypatch.setattr(t.time, "sleep", lambda s: None)
     stats = t.run(CFG, _FakeSource(ENTS, RECS), FakeCKAN())
-    assert stats == {"publicadas": 1, "vacias": 1, "excluidas": 1, "errores": 0}
+    assert stats == {"publicadas": 1, "vacias": 1, "excluidas": 1, "errores": 0, "ficheros_subidos": 2}
 
 
 def test_run_dry_run_no_escribe():
@@ -201,7 +223,7 @@ def test_run_dry_run_no_escribe():
 def test_run_solo_una_tabla(monkeypatch):
     monkeypatch.setattr(t.time, "sleep", lambda s: None)
     stats = t.run(CFG, _FakeSource(ENTS, RECS), FakeCKAN(), solo="vacia")
-    assert stats == {"publicadas": 0, "vacias": 1, "excluidas": 0, "errores": 0}
+    assert stats == {"publicadas": 0, "vacias": 1, "excluidas": 0, "errores": 0, "ficheros_subidos": 0}
 
 
 def test_run_sigue_si_una_tabla_falla(monkeypatch):
@@ -221,9 +243,9 @@ def test_main_exige_credenciales(tmp_path, monkeypatch):
 def test_main_codigo_de_salida(tmp_path, monkeypatch):
     p = tmp_path / "c.yml"
     p.write_text("source: https://x\norganization: a\n")
-    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 2})
+    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 2, "ficheros_subidos": 0})
     assert t.main([str(p), "--dry-run"]) == 1
-    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 3, "vacias": 0, "excluidas": 0, "errores": 0})
+    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 3, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 6})
     assert t.main([str(p), "--dry-run"]) == 0
 
 

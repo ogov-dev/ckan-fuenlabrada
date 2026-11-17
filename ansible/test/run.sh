@@ -74,3 +74,11 @@ done
 for p in 8091 8092; do
   curl -s "http://localhost:$p/api/3/action/status_show" | python3 -c "import sys,json;r=json.load(sys.stdin)['result'];print($p, r['site_title'], r['site_url'], r['ckan_version'])"
 done
+
+echo "== 7. Validación: un valor con '%' se rechaza antes de tocar el servidor"
+if run ansible-playbook -i /work/hosts.yml --vault-password-file /work/vault-pass playbooks/deploy.yml \
+     --limit prueba-a -e "ckan_site_title='100% prueba'" > "$WORK/run3.log" 2>&1; then
+  echo "FALLO: se aceptó un valor con '%'"; exit 1
+fi
+grep -q "comilla simple, salto de línea o '%'" "$WORK/run3.log" && echo "rechazado por el rol (correcto)"
+grep -q "Levantar la instancia" "$WORK/run3.log" && { echo "FALLO: llegó a desplegar"; exit 1; } || true
