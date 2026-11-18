@@ -33,6 +33,8 @@ def _catalog_graph(datasets):
 
 @pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
 @pytest.mark.ckan_config("ckanext.ogovtech_theme.contact_email", "datos@ayto.es")
+@pytest.mark.ckan_config("ckanext.ogovtech.catalog_issued", "")        # instalación mínima
+@pytest.mark.ckan_config("ckan.site_description", "")
 def test_catalogo_representativo_sin_violaciones(shapes):
     org = factories.Organization()
     common = dict(owner_org=org["id"], license_id="odc-by", language=[SPA])

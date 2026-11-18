@@ -3,6 +3,11 @@
 Portal CKAN estándar, común y replicable para todos los ayuntamientos, federable
 con datos.gob.es (DCAT-AP / DCAT-AP-ES).
 
+## Documentación
+
+- [Primera instalación](docs/INSTALACION.md)
+- [Actualizar CKAN desde GitHub sin modificar datos de producción](docs/ACTUALIZACION.md)
+
 ## Organización de repositorios
 
 | Repositorio | Qué contiene | Cuántos |
@@ -104,7 +109,26 @@ docker run --rm -v "$PWD/tests/acceptance:/acc" -w /acc --entrypoint python3 ogo
 
 # Rol de Ansible: lint, despliegue de 2 instancias, idempotencia y aislamiento
 ansible/test/run.sh && ansible/test/run.sh --down
+
+# Despliegue REMOTO por SSH desde un registro, actualización 1.0.0 -> 1.1.0 con
+# datos, copia de seguridad y restauración (servidor simulado con Docker propio)
+ansible/test/remote/run.sh
+ansible/test/remote/backup_restore.sh <token> <huella.json>
+ansible/test/remote/run.sh --down
+
+# Federación: catálogo de una instancia contra las formas SHACL oficiales de DCAT-AP-ES
+docker run --rm -v "$PWD/tests/federation:/v" -w /v python:3.12-slim \
+    sh -c 'pip install -q -r requirements.txt && python validate_dcat_ap_es.py --url http://<host>:<puerto>'
 ```
+
+## Publicar una versión de la imagen
+
+```bash
+scripts/release-image.sh 1.2.0 --push <registro>/ogov-ckan
+```
+
+Solo desde un árbol git limpio; prueba la imagen antes de publicarla, no
+sobrescribe versiones existentes e imprime el digest para el inventario.
 
 ## Despliegue con Ansible
 
@@ -171,8 +195,17 @@ Decisiones de oGov / del ayuntamiento:
 
 Comprobaciones aún no realizadas:
 
-- Validar el RDF del catálogo con el validador de datos.gob.es.
-- Despliegue con Ansible por SSH contra una máquina de preproducción (solo probado en Docker local).
+- Federación real con datos.gob.es (el catálogo ya valida contra sus formas SHACL oficiales).
+- Despliegue en un servidor real de preproducción (probado por SSH contra un servidor simulado).
 - HTTPS / certificados (responsabilidad de la infraestructura según el anexo técnico).
-- Registro de imágenes, CI y ejecución programada del conector (trabajo nuevo, fuera de esta entrega).
-- Actualizaciones de versión de CKAN sobre una instancia con datos (no probadas).
+- Registro de imágenes definitivo (p. ej. GHCR) y CI (trabajo nuevo, fuera de esta entrega).
+- **Sincronización automática** del conector de transparencia: hoy solo se ejecuta a mano;
+  falta programarlo (p. ej. tarea nocturna instalada por Ansible).
+- **Gráficos y mapas** en las vistas de recursos (`ckanext-charts`, `ckanext-geoview`…):
+  fuera de la oferta base; evaluar compatibilidad con CKAN 2.12 antes de incluirlos.
+- Calidad de metadatos para datos.gob.es: el catálogo no tiene violaciones DCAT-AP-ES, pero sí
+  avisos de propiedades recomendadas (contacto, cobertura temporal, descripción de recursos).
+- 39 de 87 hojas de cálculo de Fuenlabrada no se cargan en DataStore (no son tablas limpias:
+  títulos, celdas combinadas…). Se descargan bien; falta la vista previa en tabla.
+- Actualización a una versión de CKAN con migraciones de esquema (la actualización
+  1.0.0 -> 1.1.0 con datos está probada, pero ambas usan CKAN 2.12.1).

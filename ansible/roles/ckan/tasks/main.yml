@@ -40,12 +40,21 @@
   ansible.builtin.command: docker compose version
   changed_when: false
 
+# La carpeta de la instancia guarda el .env: solo su propietario.
+# nginx/ y postgres/ se montan en contenedores con usuarios propios (p. ej.
+# postgres, uid 70): deben ser legibles por todos (no contienen secretos).
 - name: Directorio de la instancia
+  ansible.builtin.file:
+    path: "{{ ckan_instance_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Directorios montados en los contenedores
   ansible.builtin.file:
     path: "{{ ckan_instance_dir }}/{{ item }}"
     state: directory
-    mode: "0750"
-  loop: ["", nginx, postgres]
+    mode: "0755"
+  loop: [nginx, postgres]
 
 - name: Ficheros de la baseline (versión del nodo de control)
   ansible.builtin.copy:

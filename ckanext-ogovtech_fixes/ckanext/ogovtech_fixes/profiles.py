@@ -13,6 +13,8 @@ Catálogo
   * ``dct:license``, ``dct:issued``, ``dct:identifier``.
   * ``dct:language``   -> URIs de la EU Publications Office.
   * ``dct:description`` -> si el portal no tiene lema, se genera (es obligatoria).
+  * ``dct:issued``     -> ``ckanext.ogovtech.catalog_issued`` o, si falta, la fecha de
+    instalación del portal (es obligatoria).
 
 Conjunto de datos
   * ``dct:publisher``  -> el mismo DIR3 (si el dataset no trae uno propio).
@@ -118,6 +120,16 @@ def _lang_uri(code: str) -> URIRef:
     return URIRef(EU_LANG + LANG_MAP.get(code, code.upper()))
 
 
+def _install_date() -> str | None:
+    """Fecha de instalación del portal: creación del usuario interno (site user)."""
+    try:
+        site_user = tk.get_action("get_site_user")({"ignore_auth": True}, {})
+        user = tk.get_action("user_show")({"ignore_auth": True}, {"id": site_user["name"]})
+        return (user.get("created") or "")[:10] or None
+    except Exception:  # sin base de datos (p. ej. serialización aislada)
+        return None
+
+
 def _tag_spanish(g, subject, predicates=TEXT_PREDICATES) -> None:
     """Literales de texto sin idioma -> ``@es`` (DCAT-AP-ES exige literales multilingües)."""
     for p in predicates:
@@ -162,8 +174,10 @@ class DCATAPESProfile(RDFProfile):
         lic = _cfg("catalog_license", "https://creativecommons.org/licenses/by/4.0/")
         g.set((catalog_ref, DCT.license, URIRef(lic)))
 
-        issued = _cfg("catalog_issued")
-        if issued:
+        # dct:issued es obligatorio: la fecha configurada o, si falta, la de
+        # instalación del portal (creación del usuario interno de CKAN).
+        issued = _cfg("catalog_issued") or _install_date()
+        if issued and not list(g.objects(catalog_ref, DCT.issued)):
             self._add_date_triple(catalog_ref, DCT.issued, issued)
 
         # Idioma(s) del catálogo como URIs EU (sustituye el literal "es").

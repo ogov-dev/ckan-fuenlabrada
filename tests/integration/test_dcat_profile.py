@@ -168,6 +168,12 @@ class TestCatalogo:
         assert list(g.objects(ref, DCT.license)) == [URIRef("https://creativecommons.org/licenses/by/4.0/")]
         assert list(g.objects(ref, DCT.issued))
 
+    @pytest.mark.ckan_config("ckanext.ogovtech.catalog_issued", "")
+    def test_fecha_del_catalogo_siempre_presente(self):
+        g, ref = self._catalog()
+        issued = list(g.objects(ref, DCT.issued))
+        assert len(issued) == 1 and str(issued[0])[:4].isdigit()
+
     @pytest.mark.ckan_config("ckan.site_description", "")
     def test_descripcion_del_catalogo_siempre_presente(self):
         g, ref = self._catalog()
