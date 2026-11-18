@@ -85,7 +85,8 @@ antiguas siguen funcionando si el dominio apunta al portal nuevo.
 Publica en CKAN cada tabla del portal de transparencia de oGov (índice `/data/5`
 y visores) usando su API pública de lectura: un dataset por tabla con CSV y JSON
 de columnas legibles, enlaces a los documentos y enlace al visor original.
-Idempotente, pensado para ejecutarse periódicamente (cron).
+Idempotente; retira con salvaguardas las tablas que desaparecen. Ansible lo
+programa por instancia (por defecto, mensual): ver docs/INSTALACION.md, apdo. 7.
 
 ```bash
 docker exec -w /srv/app/connectors/transparencia -e CKAN_URL=http://localhost:5000 -e CKAN_API_TOKEN=… \
@@ -192,6 +193,7 @@ Decisiones de oGov / del ayuntamiento:
 - Licencia de los datos del conector de transparencia (ahora `odc-by`) y de los 2 datasets
   de Fuenlabrada que no tenían licencia en origen (ahora `odc-by`).
 - Alcance del tema rehecho frente a la oferta base de Solucionex.
+- Alta de cada portal en datos.gob.es y su periodicidad de federación (trámite del ayuntamiento).
 
 Comprobaciones aún no realizadas:
 
@@ -199,8 +201,6 @@ Comprobaciones aún no realizadas:
 - Despliegue en un servidor real de preproducción (probado por SSH contra un servidor simulado).
 - HTTPS / certificados (responsabilidad de la infraestructura según el anexo técnico).
 - Registro de imágenes definitivo (p. ej. GHCR) y CI (trabajo nuevo, fuera de esta entrega).
-- **Sincronización automática** del conector de transparencia: hoy solo se ejecuta a mano;
-  falta programarlo (p. ej. tarea nocturna instalada por Ansible).
 - **Gráficos y mapas** en las vistas de recursos (`ckanext-charts`, `ckanext-geoview`…):
   fuera de la oferta base; evaluar compatibilidad con CKAN 2.12 antes de incluirlos.
 - Calidad de metadatos para datos.gob.es: el catálogo no tiene violaciones DCAT-AP-ES, pero sí

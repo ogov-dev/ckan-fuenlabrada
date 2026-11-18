@@ -236,6 +236,20 @@ def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]])
     return uploaded
 
 
+def publish_with_retry(dst, pkg: dict, slug: str, labels, rows, retries: int = 3) -> int:
+    """publish() con reintentos ante cortes de red transitorios (CKAN ocupado,
+    p. ej. procesando XLoader). Los errores de validación no se reintentan."""
+    for attempt in range(1, retries + 1):
+        try:
+            return publish(dst, pkg, slug, labels, rows)
+        except (requests.ConnectionError, requests.Timeout) as e:
+            if attempt == retries:
+                raise
+            log(f"  reintento {attempt} de {pkg['name']} tras error de red: {e}")
+            time.sleep(5 * attempt)
+    raise AssertionError("inalcanzable")
+
+
 def existing_datasets(dst, cfg: dict) -> list[str]:
     """Datasets del conector ya publicados (por organización, etiqueta y prefijo)."""
     prefix = cfg.get("dataset_prefix", "transparencia-")
@@ -312,7 +326,7 @@ def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict:
                 if warning not in detail["avisos"]:
                     detail["avisos"].append(warning)
                     log(f"  aviso: {warning}")
-            uploaded = publish(dst, pkg, slug, labels, rows)
+            uploaded = publish_with_retry(dst, pkg, slug, labels, rows)
             stats["ficheros_subidos"] += uploaded
             stats["publicadas"] += 1
             if uploaded:

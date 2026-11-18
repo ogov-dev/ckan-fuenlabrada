@@ -47,11 +47,10 @@ n=$(docker exec "$SERVER" docker exec ogov-remoto-ckan-1 ckan -c /srv/app/ckan.i
 echo "tokens sync-transparencia activos: $n"; [ "$n" = 0 ]
 
 step "6. Una tabla deja de publicarse (se excluye): se retira"
-python3 - "$REPO/connectors/transparencia/portales/fuenlabrada.yml" "$WORK/fuenlabrada-excluye.yml" <<'PY'
-import sys, yaml
-cfg = yaml.safe_load(open(sys.argv[1])); cfg["excluir"] = cfg.get("excluir", []) + ["contratos-menores"]
-yaml.safe_dump(cfg, open(sys.argv[2], "w"), allow_unicode=True)
-PY
+# Copia del YAML con una exclusión más (sin dependencias: inserta tras "excluir:")
+awk '{print} /^excluir:/{print "  - contratos-menores"}' "$REPO/connectors/transparencia/portales/fuenlabrada.yml" \
+  > "$WORK/fuenlabrada-excluye.yml"
+grep -A3 '^excluir:' "$WORK/fuenlabrada-excluye.yml"
 ansible_run -e "ckan_transparencia_config=/work/fuenlabrada-excluye.yml"
 run_job
 code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/3/action/package_show?id=transparencia-contratos-menores")

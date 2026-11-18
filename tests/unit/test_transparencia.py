@@ -390,3 +390,31 @@ def test_informe_de_ejecucion(tmp_path, monkeypatch):
     data = json.loads(path.read_text())
     assert data["resultado"] == "ERROR" and data["retirada_bloqueada"] == 2
     assert (path.parent / "fuenlabrada-ultimo.json").exists()
+
+
+
+def test_publicacion_reintenta_cortes_de_red(monkeypatch):
+    import requests
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    calls = []
+
+    def flaky(*a, **k):
+        calls.append(1)
+        if len(calls) < 3:
+            raise requests.ConnectionError("Connection reset by peer")
+        return 2
+    monkeypatch.setattr(t, "publish", flaky)
+    assert t.publish_with_retry(None, {"name": "x"}, "x", [], []) == 2 and len(calls) == 3
+
+
+def test_publicacion_no_reintenta_errores_de_validacion(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    calls = []
+
+    def invalid(*a, **k):
+        calls.append(1)
+        raise ValueError("validación")
+    monkeypatch.setattr(t, "publish", invalid)
+    with pytest.raises(ValueError):
+        t.publish_with_retry(None, {"name": "x"}, "x", [], [])
+    assert len(calls) == 1

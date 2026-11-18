@@ -136,6 +136,58 @@ recomendadas que dependen de la calidad de los metadatos).
    pie y **correo de contacto** (también se usa como punto de contacto en DCAT).
 2. Crear organizaciones, grupos y usuarios editores.
 3. Si se sustituye un portal existente: migración estándar (README, "Migración").
-4. Conector de transparencia, si aplica (README).
-5. Federación: solicitar en datos.gob.es el alta del catálogo
-   `https://<portal>/catalog.rdf` (trámite administrativo, fuera de este proyecto).
+4. Conector de transparencia, si aplica (apartado 7).
+5. Federación con datos.gob.es (apartado 8).
+
+## 7. Sincronización con el Portal de Transparencia
+
+Si el ayuntamiento tiene portal de transparencia de oGov, sus tablas se publican
+como datasets y se mantienen al día **automáticamente**.
+
+1. Crear en CKAN la organización indicada en el YAML del conector (y, si se
+   quieren usar, los grupos de su `clasificacion`; si un grupo no existe, el
+   dataset se publica sin él y queda un aviso en el informe).
+2. En el inventario, apuntar a su configuración (en el repositorio de
+   despliegues, p. ej. `connectors/fuenlabrada.yml`):
+   ```yaml
+   ckan_transparencia_config: "{{ inventory_dir }}/connectors/fuenlabrada.yml"
+   # Opcional: por defecto, el día 1 de cada mes a las 03:30
+   ckan_transparencia_cron: {minute: "30", hour: "3", day: "1", month: "*", weekday: "*"}
+   ```
+3. Desplegar. El rol copia la configuración a la instancia y programa la tarea
+   en el `crontab` de root. Para lanzarla en el momento:
+   ```bash
+   sudo sh -c 'cd /opt/ogov-ckan/<instancia> && docker compose exec -T ckan /srv/app/ogov-sync-transparencia.sh'
+   ```
+
+Cada ejecución:
+
+- usa un **token temporal** que se revoca al terminar (no hay credenciales guardadas);
+- solo resube las tablas que han cambiado (y solo esas pasan por XLoader);
+- **retira** (borrado recuperable desde la papelera de CKAN) los datasets de tablas
+  que ya no existen, se han vaciado o se han excluido, **salvo** que la ejecución no
+  sea fiable: errores, origen sin tablas o retirada de más del 20 % (configurable
+  con `max_retirada` en el YAML). En esos casos no retira nada y termina con error;
+- deja registro en `/opt/ogov-ckan/<instancia>/logs/sync-transparencia.log` y un
+  informe JSON en el volumen (`/var/lib/ckan/ogov-tools/connectors/transparencia/
+  reports/<portal>-ultimo.json`).
+
+Los datasets de transparencia **no se editan a mano en CKAN**: la siguiente
+sincronización los sobrescribe. Las correcciones se hacen en el Portal de
+Transparencia. La vigilancia de que la tarea no falle (revisar el log o el
+informe, alertas) corresponde a la monitorización de la infraestructura.
+
+## 8. Federación con datos.gob.es
+
+- **Alta (una vez, manual y administrativa):** el ayuntamiento se registra en
+  datos.gob.es como organismo publicador y da de alta la URL del catálogo
+  `https://<portal>/catalog.rdf`, eligiendo la **periodicidad** de federación.
+- **Después es automático:** el federador de datos.gob.es recoge el catálogo con
+  esa periodicidad (desde su panel también puede lanzarse a mano). Todo lo que
+  cambie en CKAN —datasets editados por el ayuntamiento y tablas sincronizadas
+  desde transparencia— llega en la siguiente recogida.
+- Para que lo sincronizado el día 1 llegue cuanto antes, la periodicidad de
+  datos.gob.es debe ser igual o más frecuente que la de la sincronización (p. ej.
+  semanal o diaria).
+- Antes del alta, validar el catálogo con las formas SHACL oficiales (apartado 5):
+  0 violaciones.
