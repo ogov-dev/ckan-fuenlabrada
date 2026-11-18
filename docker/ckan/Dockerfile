@@ -61,7 +61,7 @@ ENV CKAN__PLUGINS="ogovtech_theme ogovtech_fixes activity stats dcat scheming_da
 RUN ckan config-tool ${CKAN_INI} \
         "ckan.views.default_views=datatables_view text_view image_view" \
         "ckan.locale_default=es" \
-        "ckan.locales_offered=es en" \
+        "ckan.locales_offered=es" \
         "ckan.auth.public_user_details=false" \
         "ckan.max_resource_size=100" \
         "licenses_group_url=file://${SRC_DIR}/ckanext-ogovtech_fixes/ckanext/ogovtech_fixes/schemas/licenses.json" \

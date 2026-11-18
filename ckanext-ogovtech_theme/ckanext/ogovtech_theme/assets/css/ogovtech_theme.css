@@ -132,7 +132,18 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
   padding: .5rem .75rem;
 }
 .masthead .site-search .btn { color: var(--ogov-on-primary); }
-.masthead .navbar-toggler { border-color: rgba(255,255,255,.5); }
+.masthead .navbar-toggler {
+  border-color: rgba(255,255,255,.5);
+  min-width: 44px; min-height: 44px;            /* objetivo táctil recomendado */
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ---------- Rejilla ---------------------------------------------------------- */
+/* CKAN fija el padding del .container en 6px, pero las filas mantienen el
+   margen negativo de Bootstrap (-12px): desbordamiento horizontal de 6px en las
+   páginas interiores cuando el contenedor ocupa todo el ancho (móvil, 768px,
+   992px). Se restablece la regla de Bootstrap: margen de fila = padding. */
+.container > .row { margin-left: -6px; margin-right: -6px; }
 
 /* ---------- Títulos de página y migas -------------------------------------- */
 .toolbar .breadcrumb a, .toolbar .breadcrumb li { color: var(--ogov-primary); font-weight: 500; }
@@ -274,6 +285,16 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
 }
 .ogov-group-badge .ogov-icon { width: 44px; height: 44px; }
 
+/* Ficha de grupo (barra lateral): misma baldosa con el icono de la temática */
+.context-info .ogov-group-badge--info {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; aspect-ratio: 16 / 10; max-width: 240px;
+  background: var(--ogov-primary); color: var(--ogov-on-primary);
+  border-radius: var(--ogov-radius-lg);
+}
+.context-info .ogov-group-badge--info .ogov-icon { width: 56px; height: 56px; }
+.context-info .ogov-group-badge--info:hover { opacity: .9; text-decoration: none; }
+
 .ogov-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
 .ogov-card {
   display: flex; flex-direction: column; gap: .5rem;
@@ -326,6 +347,13 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
 .ogov-footer__ckan { font-weight: 700; }
 
 @media (max-width: 767.98px) {
+  /* CKAN muestra en móvil la barra lateral (organización, seguidores, redes)
+     ANTES del contenido. En un portal de datos, primero el contenido. */
+  .row.wrapper { flex-direction: column; }
+  .row.wrapper > .primary { order: 1; }
+  .row.wrapper > .secondary { order: 2; margin-top: 1rem; }
+  .secondary .context-info .image img,
+  .secondary .module-narrow .image img { max-height: 96px; width: auto; }
   .ogov-footer__main { grid-template-columns: 1fr; text-align: center; }
   .ogov-footer__brand, .ogov-footer__contact { justify-self: center; }
   .ogov-hero__search { flex-direction: column; }
