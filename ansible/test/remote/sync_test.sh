@@ -64,7 +64,13 @@ for _ in $(seq 36); do
   [ "$now" -gt "$before" ] && break; sleep 10
 done
 [ "$now" -gt "$before" ] && echo "cron lanzó la sincronización ($before -> $now ejecuciones registradas)" || { echo "FALLO: cron no la lanzó"; exit 1; }
-docker exec "$SERVER" sh -c "while pgrep -f ogov-sync-transparencia >/dev/null; do sleep 5; done"
+# Esperar a que TERMINE una ejecución lanzada por cron (no a que no haya
+# ninguna: con programación cada minuto siempre empieza otra).
+done_before=$(docker exec "$SERVER" sh -c "grep -c '^\[transparencia\]' $INST/logs/sync-transparencia.log")
+for _ in $(seq 60); do
+  done_now=$(docker exec "$SERVER" sh -c "grep -c '^\[transparencia\]' $INST/logs/sync-transparencia.log")
+  [ "$done_now" -gt "$done_before" ] && break; sleep 10
+done
 docker exec "$SERVER" sh -c "grep '^\[transparencia\]' $INST/logs/sync-transparencia.log | tail -1"
 api "package_search?fq=tags:transparencia&rows=0" | python3 -c "import sys,json;print('datasets de transparencia (la tabla excluida vuelve):', json.load(sys.stdin)['result']['count'])"
 

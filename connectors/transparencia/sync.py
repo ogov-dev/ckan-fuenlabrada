@@ -207,8 +207,11 @@ def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]])
     Solo sube CSV/JSON si su contenido cambió (huella SHA-256 en ``HASH_FIELD``).
     Devuelve el número de ficheros subidos."""
     try:
-        dst.action.package_show(id=pkg["name"])
-        dst.action.package_patch(id=pkg["name"], **pkg)
+        current_pkg = dst.action.package_show(id=pkg["name"])
+        # Si la tabla se retiró en una ejecución anterior y vuelve a existir,
+        # se reactiva (sin esto quedaría borrada para siempre).
+        state = {"state": "active"} if current_pkg.get("state") == "deleted" else {}
+        dst.action.package_patch(id=pkg["name"], **pkg, **state)
     except NotFound:
         dst.action.package_create(**pkg)
     current = {r["name"]: r for r in dst.action.package_show(id=pkg["name"])["resources"]}

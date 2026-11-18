@@ -418,3 +418,14 @@ def test_publicacion_no_reintenta_errores_de_validacion(monkeypatch):
     with pytest.raises(ValueError):
         t.publish_with_retry(None, {"name": "x"}, "x", [], [])
     assert len(calls) == 1
+
+
+
+def test_tabla_retirada_que_vuelve_se_reactiva(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    t.run(CFG, _FakeSource(ENTS10, RECS10), dst)                         # publica 10
+    t.run({**CFG, "excluir": ["tabla-5"]}, _FakeSource(ENTS10, RECS10), dst)
+    assert dst.pkgs["transparencia-tabla-5"]["state"] == "deleted"
+    t.run(CFG, _FakeSource(ENTS10, RECS10), dst)                         # vuelve
+    assert dst.pkgs["transparencia-tabla-5"]["state"] == "active"
