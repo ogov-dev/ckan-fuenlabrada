@@ -1,0 +1,33 @@
+{% ckan_extends %}
+{# ckanext-scheming renderiza esta plantilla (resource_template) y extiende
+   package/resource_read.html: los bloques de la tabla se sobrescriben aquí. #}
+
+{# Información adicional del recurso: solo los campos del esquema que tienen
+   valor y, de los demás, los útiles para quien descarga (tamaño y tipo MIME).
+   El core listaba todos los campos internos con su nombre técnico en inglés
+   ("Datastore active", "Package id", "State"…) y repetía issued/modified. #}
+{%- block resource_fields -%}
+  {%- for field in schema.resource_fields -%}
+    {%- if field.field_name not in exclude_fields
+        and field.display_snippet is not none
+        and h.ogovtech_has_value(res.get(field.field_name)) -%}
+      <tr>
+        <th scope="row">{{- h.scheming_language_text(field.label) -}}</th>
+        <td>
+          {%- snippet 'scheming/snippets/display_field.html',
+              field=field, data=res, entity_type='dataset',
+              object_type=dataset_type -%}
+        </td>
+      </tr>
+    {%- endif -%}
+  {%- endfor -%}
+{%- endblock -%}
+
+{%- block resource_more_items -%}
+  {%- if res.size -%}
+    <tr><th scope="row">{{ _('Tamaño') }}</th><td>{{ h.localised_filesize(res.size) }}</td></tr>
+  {%- endif -%}
+  {%- if res.mimetype -%}
+    <tr><th scope="row">{{ _('Tipo MIME') }}</th><td>{{ res.mimetype }}</td></tr>
+  {%- endif -%}
+{%- endblock -%}

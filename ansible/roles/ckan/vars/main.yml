@@ -1,0 +1,2 @@
+---
+ckan_instance_dir: "{{ ckan_base_dir }}/{{ ckan_instance_name }}"

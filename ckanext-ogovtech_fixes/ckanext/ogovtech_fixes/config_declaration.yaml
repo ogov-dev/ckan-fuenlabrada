@@ -4,7 +4,7 @@ groups:
     options:
       - key: ckanext.ogovtech.dir3_code
         default: ""
-        example: L01280407
+        example: L01XXXXXX   # formato; usar el código oficial del ayuntamiento
         description: Código DIR3 del ayuntamiento (publicador del catálogo en datos.gob.es).
       - key: ckanext.ogovtech.spatial_uri
         default: ""

@@ -33,7 +33,8 @@
           {% if phone %}<li><i class="fa fa-phone" aria-hidden="true"></i> <a href="tel:{{ phone | replace(' ', '') }}">{{ phone }}</a></li>{% endif %}
           {% if email %}<li><i class="fa fa-envelope" aria-hidden="true"></i> <a href="mailto:{{ email }}">{{ email }}</a></li>{% endif %}
         </ul>
-        {% block footer_lang %}{% snippet "snippets/language_selector.html" %}{% endblock %}
+        {# Selector de idioma solo si el portal ofrece más de uno (ckan.locales_offered). #}
+        {% block footer_lang %}{% if h.get_available_locales() | length > 1 %}{% snippet "snippets/language_selector.html" %}{% endif %}{% endblock %}
       </div>
     </div>
     {% set legal = h.ogovtech_theme_footer_links('footer_legal_links') %}

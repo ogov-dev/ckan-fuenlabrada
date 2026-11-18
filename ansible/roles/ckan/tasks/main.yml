@@ -1,0 +1,139 @@
+---
+- name: Comprobar la fortaleza de los secretos (antes de tocar el servidor)
+  ansible.builtin.assert:
+    that:
+      - vault_ckan_secret_key | length >= 32
+      - vault_ckan_jwt_secret | length >= 32
+      - vault_ckan_sysadmin_password | length >= 12
+      - vault_postgres_password | length >= 16
+      - vault_ckan_db_password | length >= 16
+      - vault_datastore_ro_password | length >= 16
+    fail_msg: "Secretos insuficientes para {{ ckan_instance_name }}: revisa su vault."
+    quiet: true
+  no_log: true
+
+- name: Comprobar que ningún valor rompe el .env ni la configuración de CKAN
+  # Comilla simple o salto de línea rompen el .env; "%" impide arrancar a CKAN
+  # (interpola todas las variables CKAN_*).
+  ansible.builtin.assert:
+    that: "item is string and \"'\" not in item and '\n' not in item and '%' not in item"
+    fail_msg: "Hay un valor con comilla simple, salto de línea o '%' en la configuración de {{ ckan_instance_name }}"
+    quiet: true
+  loop:
+    - "{{ ckan_site_title }}"
+    - "{{ ckan_site_url }}"
+    - "{{ ckan_site_id }}"
+    - "{{ ckan_sysadmin_email }}"
+    - "{{ ckan_dir3_code }}"
+    - "{{ ckan_spatial_uri }}"
+    - "{{ ckan_catalog_issued }}"
+    - "{{ ckan_image }}"
+    - "{{ vault_ckan_secret_key }}"
+    - "{{ vault_ckan_jwt_secret }}"
+    - "{{ vault_ckan_sysadmin_password }}"
+    - "{{ vault_postgres_password }}"
+    - "{{ vault_ckan_db_password }}"
+    - "{{ vault_datastore_ro_password }}"
+  no_log: true
+
+- name: Comprobar que el servidor tiene Docker y Compose (lo aporta la infraestructura)
+  ansible.builtin.command: docker compose version
+  changed_when: false
+
+# La carpeta de la instancia guarda el .env: solo su propietario.
+# nginx/ y postgres/ se montan en contenedores con usuarios propios (p. ej.
+# postgres, uid 70): deben ser legibles por todos (no contienen secretos).
+- name: Directorio de la instancia
+  ansible.builtin.file:
+    path: "{{ ckan_instance_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Directorios montados en los contenedores
+  ansible.builtin.file:
+    path: "{{ ckan_instance_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [nginx, postgres, config]
+
+- name: Directorio de registros de la instancia
+  ansible.builtin.file:
+    path: "{{ ckan_instance_dir }}/logs"
+    state: directory
+    mode: "0750"
+
+- name: Ficheros de la baseline (versión del nodo de control)
+  ansible.builtin.copy:
+    src: "{{ ckan_baseline_dir }}/docker/{{ item.src }}"
+    dest: "{{ ckan_instance_dir }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {src: docker-compose.yml, dest: docker-compose.yml, mode: "0640"}
+    - {src: nginx/default.conf, dest: nginx/default.conf, mode: "0644"}
+    - {src: postgres/10_ckan_datastore.sh, dest: postgres/10_ckan_datastore.sh, mode: "0755"}
+
+- name: Variables de la instancia (.env, solo legible por el propietario)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ ckan_instance_dir }}/.env"
+    mode: "0600"
+  no_log: true
+
+- name: Levantar la instancia
+  community.docker.docker_compose_v2:
+    project_src: "{{ ckan_instance_dir }}"
+    project_name: "{{ ckan_instance_name }}"
+    pull: "{{ 'missing' if ckan_image_pull else 'never' }}"
+    build: never
+    state: present
+    wait: true
+    wait_timeout: 900
+
+- name: Configuración del conector de transparencia
+  ansible.builtin.copy:
+    src: "{{ ckan_transparencia_config }}"
+    dest: "{{ ckan_instance_dir }}/config/transparencia.yml"
+    mode: "0644"
+  when: ckan_transparencia_config | length > 0
+
+- name: Sin conector de transparencia, sin configuración
+  ansible.builtin.file:
+    path: "{{ ckan_instance_dir }}/config/transparencia.yml"
+    state: absent
+  when: ckan_transparencia_config | length == 0
+
+- name: Sincronización programada con el Portal de Transparencia
+  ansible.builtin.cron:
+    name: "ogov-ckan {{ ckan_instance_name }} transparencia"
+    user: root
+    minute: "{{ ckan_transparencia_cron.minute }}"
+    hour: "{{ ckan_transparencia_cron.hour }}"
+    day: "{{ ckan_transparencia_cron.day }}"
+    month: "{{ ckan_transparencia_cron.month }}"
+    weekday: "{{ ckan_transparencia_cron.weekday }}"
+    job: >-
+      export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin;
+      cd {{ ckan_instance_dir }} &&
+      flock -n /tmp/ogov-sync-{{ ckan_instance_name }}.lock
+      docker compose exec -T ckan /srv/app/ogov-sync-transparencia.sh
+      >> {{ ckan_instance_dir }}/logs/sync-transparencia.log 2>&1
+    state: "{{ 'present' if ckan_transparencia_config | length > 0 else 'absent' }}"
+
+- name: Esperar a que CKAN responda
+  ansible.builtin.uri:
+    url: "http://{{ ckan_health_host }}:{{ ckan_http_port }}/api/3/action/status_show"
+    return_content: true
+  register: ckan_status
+  until: ckan_status.status == 200
+  retries: "{{ ckan_health_retries }}"
+  delay: 10
+
+- name: Comprobar versión, URL y extensiones de la instancia
+  ansible.builtin.assert:
+    that:
+      - ckan_status.json.result.site_url == ckan_site_url
+      - ckan_status.json.result.site_title == ckan_site_title
+      - ckan_expected_plugins | difference(ckan_status.json.result.extensions) | length == 0
+    fail_msg: "La instancia {{ ckan_instance_name }} no expone la configuración esperada"
+    success_msg: >-
+      {{ ckan_instance_name }}: CKAN {{ ckan_status.json.result.ckan_version }} en {{ ckan_site_url }}

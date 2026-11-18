@@ -10,8 +10,9 @@ datos en CKAN, con:
 * los documentos adjuntos (PDF, XLSX…) como enlaces dentro de las columnas,
 * un recurso que enlaza al visor original del portal de transparencia.
 
-Es idempotente: cada ejecución actualiza los mismos conjuntos de datos, así
-que puede programarse (cron) para mantener CKAN sincronizado.
+Es idempotente: cada ejecución actualiza los mismos conjuntos de datos (solo
+resube lo que cambia) y retira, con salvaguardas, los de tablas que ya no
+existen. Se programa por instancia con Ansible (ver docs/INSTALACION.md).
 
     CKAN_URL=http://localhost:5000 CKAN_API_TOKEN=... \
         python3 sync.py portales/fuenlabrada.yml [--solo contratos-menores] [--dry-run]
@@ -25,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -32,6 +34,8 @@ import re
 import sys
 import time
 import unicodedata
+from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 import yaml
@@ -90,7 +94,8 @@ class Source:
             if fs.get("dynamic_entity_uuid") != uuid:
                 return []
             comps = fs["structure"]["fields"]["components"]
-        except Exception:
+        except Exception as e:
+            log(f"  aviso: sin esquema del visor {route} ({type(e).__name__}); se usan claves internas")
             return []
         out = []
         for c in comps:
@@ -161,94 +166,235 @@ def pick(rules: list[dict], name: str, field: str, default):
     return default
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("config")
-    ap.add_argument("--solo", help="procesar solo la tabla con esta ruta/slug")
-    ap.add_argument("--dry-run", action="store_true", help="no escribe en CKAN")
-    a = ap.parse_args()
-    cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
-    src = Source(cfg["source"], cfg.get("lang", "es"))
-    dst = None if a.dry_run else RemoteCKAN(os.environ["CKAN_URL"], apikey=os.environ["CKAN_API_TOKEN"], user_agent=UA)
-
-    prefix = cfg.get("dataset_prefix", "transparencia-")
-    excluded = {slugify(x) for x in cfg.get("excluir", [])}
+def build_package(name: str, slug: str, route: str, src_base: str, cfg: dict) -> dict:
     rules = cfg.get("clasificacion", [])
-    ok = empty = skipped = 0
+    group = pick(rules, name, "grupo", cfg.get("grupo_por_defecto"))
+    theme = pick(rules, name, "tematica", cfg.get("tematica_por_defecto", "sector-publico"))
+    return {
+        "name": (cfg.get("dataset_prefix", "transparencia-") + slug)[:100],
+        "title": name,
+        "notes": (f"{name}. Información publicada en el Portal de Transparencia "
+                  f"({src_base}). Actualizado automáticamente desde su API pública; "
+                  f"los documentos enlazados se sirven desde el propio portal de transparencia."),
+        "owner_org": cfg["organization"],
+        "license_id": cfg.get("license_id", "odc-by"),
+        "tags": [{"name": "transparencia"}],
+        "theme": [NTI + theme],
+        "language": [EU_LANG],
+        "url": src_base + route,
+        "groups": [{"name": group}] if group else [],
+    }
 
+
+def serialize(labels: list[str], rows: list[list[str]]) -> tuple[bytes, bytes]:
+    """CSV (UTF-8 con BOM, legible en Excel) y JSON (lista de objetos)."""
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(labels)
+    w.writerows(rows)
+    as_json = json.dumps([dict(zip(labels, r)) for r in rows], ensure_ascii=False, indent=1)
+    return buf.getvalue().encode("utf-8-sig"), as_json.encode("utf-8")
+
+
+VIEWER_RESOURCE = "Visor en el Portal de Transparencia"
+# Huella del contenido publicado. Campo propio: XLoader sobrescribe "hash".
+HASH_FIELD = "ogov_content_sha256"
+
+
+def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]]) -> int:
+    """Crea o actualiza el dataset y sus tres recursos (idempotente: por nombre).
+
+    Solo sube CSV/JSON si su contenido cambió (huella SHA-256 en ``HASH_FIELD``).
+    Devuelve el número de ficheros subidos."""
+    try:
+        current_pkg = dst.action.package_show(id=pkg["name"])
+        # Si la tabla se retiró en una ejecución anterior y vuelve a existir,
+        # se reactiva (sin esto quedaría borrada para siempre).
+        state = {"state": "active"} if current_pkg.get("state") == "deleted" else {}
+        dst.action.package_patch(id=pkg["name"], **pkg, **state)
+    except NotFound:
+        dst.action.package_create(**pkg)
+    current = {r["name"]: r for r in dst.action.package_show(id=pkg["name"])["resources"]}
+    csv_bytes, json_bytes = serialize(labels, rows)
+    title = pkg["title"]
+    uploaded = 0
+    for rname, fmt, fname, content in ((f"{title} (CSV)", "CSV", f"{slug}.csv", csv_bytes),
+                                       (f"{title} (JSON)", "JSON", f"{slug}.json", json_bytes)):
+        digest = hashlib.sha256(content).hexdigest()
+        existing = current.get(rname)
+        if existing and existing.get(HASH_FIELD) == digest:
+            continue  # sin cambios: no se resube ni se reprocesa en XLoader
+        data = {"package_id": pkg["name"], "name": rname, "format": fmt, "url": fname, HASH_FIELD: digest}
+        if existing:
+            data["id"] = existing["id"]
+        dst.call_action("resource_update" if existing else "resource_create", data,
+                        files={"upload": (fname, io.BytesIO(content))})
+        uploaded += 1
+    vdata = {"package_id": pkg["name"], "name": VIEWER_RESOURCE, "format": "HTML", "url": pkg["url"]}
+    viewer = current.get(VIEWER_RESOURCE)
+    if not viewer:
+        dst.action.resource_create(**vdata)
+    elif viewer.get("url") != pkg["url"]:
+        dst.action.resource_update(id=viewer["id"], **vdata)
+    return uploaded
+
+
+def publish_with_retry(dst, pkg: dict, slug: str, labels, rows, retries: int = 3) -> int:
+    """publish() con reintentos ante cortes de red transitorios (CKAN ocupado,
+    p. ej. procesando XLoader). Los errores de validación no se reintentan."""
+    for attempt in range(1, retries + 1):
+        try:
+            return publish(dst, pkg, slug, labels, rows)
+        except (requests.ConnectionError, requests.Timeout) as e:
+            if attempt == retries:
+                raise
+            log(f"  reintento {attempt} de {pkg['name']} tras error de red: {e}")
+            time.sleep(5 * attempt)
+    raise AssertionError("inalcanzable")
+
+
+def existing_datasets(dst, cfg: dict) -> list[str]:
+    """Datasets del conector ya publicados (por organización, etiqueta y prefijo)."""
+    prefix = cfg.get("dataset_prefix", "transparencia-")
+    res = dst.action.package_search(fq=f'organization:"{cfg["organization"]}" +tags:transparencia',
+                                    rows=1000, include_private=True)
+    return sorted(d["name"] for d in res["results"] if d["name"].startswith(prefix))
+
+
+def plan_retirement(existing: list[str], expected: set[str], stats: dict, cfg: dict) -> tuple[list[str], str | None]:
+    """Qué datasets retirar y, si hay que bloquear la retirada, por qué.
+
+    Nunca se retira nada si la ejecución no es fiable: errores, origen sin
+    tablas, o una retirada masiva (por encima de ``max_retirada``, por defecto
+    20 %) que apunta a un fallo del origen y no a un cambio real."""
+    to_retire = [n for n in existing if n not in expected]
+    if not to_retire:
+        return [], None
+    if stats["errores"]:
+        return to_retire, "hubo errores en la ejecución"
+    if not expected:
+        return to_retire, "el origen no devolvió ninguna tabla"
+    limit = float(cfg.get("max_retirada", 0.2))
+    if existing and len(to_retire) / len(existing) > limit:
+        return to_retire, f"se retirarían {len(to_retire)} de {len(existing)} (más del {limit:.0%})"
+    return to_retire, None
+
+
+def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict:
+    """Recorre las tablas del portal. Con ``dst=None`` no escribe (dry-run).
+
+    Publica/actualiza las tablas con datos y retira (borrado recuperable) los
+    datasets cuyas tablas ya no existen, están vacías o se han excluido."""
+    excluded = {slugify(x) for x in cfg.get("excluir", [])}
+    prefix = cfg.get("dataset_prefix", "transparencia-")
+    stats = {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 0,
+             "retiradas": 0, "retirada_bloqueada": 0}
+    detail: dict[str, list] = {"actualizadas": [], "retiradas": [], "errores": [], "bloqueo": [], "avisos": []}
+    expected: set[str] = set()
+    groups: set[str] | None = None
+    if dst is not None:
+        try:
+            dst.action.organization_show(id=cfg["organization"])
+        except NotFound:
+            raise SystemExit(f"La organización '{cfg['organization']}' no existe en CKAN: créala antes de sincronizar.")
+        groups = set(dst.action.group_list())
     for ent in src.entities(cfg.get("module", 5)):
         name = ent["name"].get(src.lang) or next(iter(ent["name"].values()))
         route = ent.get("route") or "/" + slugify(name)
         slug = slugify(route.strip("/") or name)
-        if a.solo and a.solo not in (slug, route.strip("/")):
+        if solo and solo not in (slug, route.strip("/")):
             continue
         if slug in excluded or slugify(name) in excluded:
-            skipped += 1
+            stats["excluidas"] += 1
             log(f"- {name}: excluida por configuración")
             continue
         records = src.records(ent["uuid"])
         if not records:
-            empty += 1
+            stats["vacias"] += 1
             log(f"- {name}: sin registros, se omite")
             continue
+        expected.add((prefix + slug)[:100])
         labels, rows = table(src, records, src.schema(route, ent["uuid"]))
         log(f"+ {name}: {len(rows)} registros, {len(labels)} columnas")
-        if a.dry_run:
+        if dst is None:
             log("    " + " · ".join(labels[:8]))
-            ok += 1
+            stats["publicadas"] += 1
             continue
-
-        ds_name = (prefix + slug)[:100]
-        group = pick(rules, name, "grupo", cfg.get("grupo_por_defecto"))
-        theme = pick(rules, name, "tematica", cfg.get("tematica_por_defecto", "sector-publico"))
-        viewer = src.base + route
-        pkg = {
-            "name": ds_name,
-            "title": name,
-            "notes": (f"{name}. Información publicada en el Portal de Transparencia "
-                      f"({src.base}). Actualizado automáticamente desde su API pública; "
-                      f"los documentos enlazados se sirven desde el propio portal de transparencia."),
-            "owner_org": cfg["organization"],
-            "license_id": cfg.get("license_id", "odc-by"),
-            "tags": [{"name": "transparencia"}],
-            "theme": [NTI + theme],
-            "language": [EU_LANG],
-            "url": viewer,
-            "groups": [{"name": group}] if group else [],
-        }
         try:
-            dst.action.package_show(id=ds_name)
-            dst.action.package_patch(id=ds_name, **pkg)
-        except NotFound:
-            dst.action.package_create(**pkg)
-        current = {r["name"]: r["id"] for r in dst.action.package_show(id=ds_name)["resources"]}
-
-        buf = io.StringIO()
-        w = csv.writer(buf)
-        w.writerow(labels)
-        w.writerows(rows)
-        payloads = [
-            (f"{name} (CSV)", "CSV", f"{slug}.csv", buf.getvalue().encode("utf-8-sig")),
-            (f"{name} (JSON)", "JSON", f"{slug}.json",
-             json.dumps([dict(zip(labels, r)) for r in rows], ensure_ascii=False, indent=1).encode()),
-        ]
-        for rname, fmt, fname, content in payloads:
-            data = {"package_id": ds_name, "name": rname, "format": fmt, "url": fname}
-            action = "resource_update" if rname in current else "resource_create"
-            if rname in current:
-                data["id"] = current[rname]
-            dst.call_action(action, data, files={"upload": (fname, io.BytesIO(content))})
-        vname = "Visor en el Portal de Transparencia"
-        vdata = {"package_id": ds_name, "name": vname, "format": "HTML", "url": viewer}
-        if vname in current:
-            dst.action.resource_update(id=current[vname], **vdata)
-        else:
-            dst.action.resource_create(**vdata)
-        ok += 1
+            pkg = build_package(name, slug, route, src.base, cfg)
+            missing = [g["name"] for g in pkg["groups"] if g["name"] not in groups]
+            if missing:
+                pkg["groups"] = [g for g in pkg["groups"] if g["name"] in groups]
+                warning = f"{name}: el grupo {', '.join(missing)} no existe en CKAN; se publica sin él"
+                if warning not in detail["avisos"]:
+                    detail["avisos"].append(warning)
+                    log(f"  aviso: {warning}")
+            uploaded = publish_with_retry(dst, pkg, slug, labels, rows)
+            stats["ficheros_subidos"] += uploaded
+            stats["publicadas"] += 1
+            if uploaded:
+                detail["actualizadas"].append(name)
+        except Exception as e:  # registrar y seguir con el resto de tablas
+            stats["errores"] += 1
+            detail["errores"].append(f"{name}: {type(e).__name__}: {e}")
+            log(f"! {name}: {type(e).__name__}: {e}")
         time.sleep(0.2)
 
-    log(f"[transparencia] {ok} tablas publicadas, {empty} vacías, {skipped} excluidas")
+    if dst is not None and not solo:
+        to_retire, blocked = plan_retirement(existing_datasets(dst, cfg), expected, stats, cfg)
+        if blocked:
+            stats["retirada_bloqueada"] = len(to_retire)
+            detail["bloqueo"] = [blocked] + to_retire
+            log(f"! retirada BLOQUEADA ({blocked}): {', '.join(to_retire)}")
+        for ds_name in ([] if blocked else to_retire):
+            dst.action.package_delete(id=ds_name)       # borrado recuperable (estado "deleted")
+            stats["retiradas"] += 1
+            detail["retiradas"].append(ds_name)
+            log(f"- retirado {ds_name}: la tabla ya no existe, está vacía o se excluyó")
+    stats["detalle"] = detail
+    return stats
+
+
+def save_report(stats: dict, cfg_path: str) -> Path | None:
+    base = os.environ.get("OGOV_TOOLS_DATA_DIR")
+    if not base:
+        return None
+    d = Path(base) / "connectors" / "transparencia" / "reports"
+    d.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ok = not stats["errores"] and not stats["retirada_bloqueada"]
+    path = d / f"{Path(cfg_path).stem}-{stamp}.json"
+    path.write_text(json.dumps({"fecha": stamp, "resultado": "OK" if ok else "ERROR", **stats},
+                               ensure_ascii=False, indent=2))
+    (d / f"{Path(cfg_path).stem}-ultimo.json").write_text(path.read_text())
+    return path
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("config")
+    ap.add_argument("--solo", help="procesar solo la tabla con esta ruta/slug")
+    ap.add_argument("--dry-run", action="store_true", help="no escribe en CKAN")
+    a = ap.parse_args(argv)
+    with open(a.config, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    src = Source(cfg["source"], cfg.get("lang", "es"))
+    dst = None
+    if not a.dry_run:
+        url, token = os.environ.get("CKAN_URL"), os.environ.get("CKAN_API_TOKEN")
+        if not url or not token:
+            raise SystemExit("Define CKAN_URL y CKAN_API_TOKEN (o usa --dry-run).")
+        dst = RemoteCKAN(url, apikey=token, user_agent=UA)
+    stats = run(cfg, src, dst, a.solo)
+    report = None if a.dry_run else save_report(stats, a.config)
+    log(f"[transparencia] {stats['publicadas']} tablas publicadas, {stats['vacias']} vacías, "
+        f"{stats['excluidas']} excluidas, {stats['errores']} con error, "
+        f"{stats['ficheros_subidos']} ficheros subidos (el resto sin cambios), "
+        f"{stats['retiradas']} retiradas, {stats['retirada_bloqueada']} con retirada bloqueada")
+    if report:
+        log(f"Informe: {report}")
+    return 1 if stats["errores"] or stats["retirada_bloqueada"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

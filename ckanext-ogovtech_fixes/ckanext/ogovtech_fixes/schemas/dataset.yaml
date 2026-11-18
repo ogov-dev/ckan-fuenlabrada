@@ -1,7 +1,7 @@
 scheming_version: 2
 dataset_type: dataset
 about: Esquema común de metadatos oGov.tech (DCAT-AP / DCAT-AP-ES, compatible NTI-RISP)
-about_url: https://github.com/ogovtech
+about_url: https://github.com/ogov-dev/ckan-fuenlabrada
 
 dataset_fields:
 
@@ -142,7 +142,10 @@ dataset_fields:
 
 - field_name: spatial_coverage
   label: Cobertura geográfica
-  help_text: Si se deja vacía se usa el ámbito del ayuntamiento configurado en el portal.
+  help_text: >-
+    Si se deja vacía se usa el ámbito del portal. Para datos.gob.es solo valen territorios de país,
+    comunidad autónoma o provincia (http://datos.gob.es/recurso/sector-publico/territorio/...),
+    no municipios.
   repeating_subfields:
     - field_name: uri
       label: URI (p. ej. http://datos.gob.es/recurso/sector-publico/territorio/Provincia/Madrid)
@@ -158,8 +161,24 @@ dataset_fields:
     - field_name: email
       label: Correo electrónico
       display_snippet: email.html
+      validators: ignore_missing unicode_safe strip_value email_validator
     - field_name: url
       label: URL
+
+# Fechas DCAT (dct:issued / dct:modified). Si faltan, ckanext-dcat usa
+# metadata_created / metadata_modified. La migración conserva aquí las fechas
+# originales del portal de origen.
+- field_name: issued
+  label: Fecha de publicación
+  preset: dcat_date
+  help_text: Fecha de primera publicación del conjunto de datos (si se deja vacía, la de alta en este portal).
+
+# Sin formulario: al editar el dataset desde la web desaparece y DCAT pasa a
+# usar la fecha real de la última modificación (metadata_modified).
+- field_name: modified
+  label: Fecha de modificación (origen)
+  preset: dcat_date
+  form_snippet: null
 
 - field_name: conforms_to
   label: Conforme a (normativa o estándar)
@@ -184,3 +203,12 @@ resource_fields:
   label: Formato
   preset: resource_format_autocomplete
   help_text: Si no se indica se deduce automáticamente.
+
+- field_name: issued
+  label: Fecha de publicación
+  preset: dcat_date
+
+- field_name: modified
+  label: Fecha de modificación (origen)
+  preset: dcat_date
+  form_snippet: null

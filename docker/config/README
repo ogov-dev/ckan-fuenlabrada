@@ -1,0 +1,2 @@
+# Configuración propia de la instancia montada en /srv/app/config (solo lectura).
+# Ansible copia aquí transparencia.yml si la instancia usa el conector.

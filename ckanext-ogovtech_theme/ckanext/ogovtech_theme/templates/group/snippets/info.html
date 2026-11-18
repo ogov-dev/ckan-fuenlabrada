@@ -1,0 +1,14 @@
+{% ckan_extends %}
+
+{# Ficha de un grupo: su icono de temática (como en la portada y en /group),
+   salvo que el grupo tenga imagen propia. #}
+{% block image %}
+  {% if group.image_display_url %}
+    {{ super() }}
+  {% else %}
+    <div class="image">
+      <a href="{{ h.url_for('group.read', id=group.name) }}" class="ogov-group-badge ogov-group-badge--info"
+         aria-label="{{ group.display_name }}">{{ h.ogovtech_group_icon(group.name) }}</a>
+    </div>
+  {% endif %}
+{% endblock %}

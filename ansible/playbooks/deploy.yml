@@ -1,0 +1,11 @@
+---
+# Despliega (o actualiza) instancias independientes de la baseline CKAN.
+#   ansible-playbook playbooks/deploy.yml -i inventories/<entorno>/hosts.yml --ask-vault-pass
+#   ansible-playbook playbooks/deploy.yml --limit fuenlabrada      # una sola instancia
+- name: Desplegar instancias CKAN de la baseline oGov.tech
+  hosts: ckan_instances
+  # Varias instancias pueden compartir servidor: se despliegan de una en una.
+  serial: 1
+  gather_facts: false
+  roles:
+    - role: ckan

@@ -1,0 +1,790 @@
+# Traducciones al español que faltan o se corrigen en CKAN 2.12.
+# Se fusionan con el catálogo de CKAN y tienen prioridad sobre él (ITranslation).
+msgid ""
+msgstr ""
+"Project-Id-Version: ckanext-ogovtech_theme VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-11-18 17:56+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es\n"
+"Language-Team: es <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid " (Primary key)"
+msgstr " (clave primaria)"
+
+#, python-format
+msgid ""
+"\"%(method)s\" defaults to \"%(upsert)s\" i.e. records will be inserted or updated based on the "
+"primary key values passed"
+msgstr ""
+"\"%(method)s\" vale por defecto \"%(upsert)s\": los registros se insertan o actualizan según los "
+"valores de la clave primaria"
+
+msgid "(invalid choice)"
+msgstr "(opción no válida)"
+
+#, python-format
+msgid "(using the <a href=\"%(url)s\">ckanapi</a> client library)"
+msgstr "(con la biblioteca cliente <a href=\"%(url)s\">ckanapi</a>)"
+
+msgid "<b>No fields defined:</b> click the Data Dictionary button above to customize this table"
+msgstr "<b>No hay campos definidos:</b> pulse el botón Diccionario de datos para personalizar esta tabla"
+
+msgid "<b>No table view defined:</b> click the Views button and add a Table view to view and edit data"
+msgstr ""
+"<b>No hay vista de tabla:</b> pulse el botón Vistas y añada una vista de tabla para ver y editar "
+"los datos"
+
+#, python-format
+msgid ""
+"<p><strong>Site Title:</strong> This is the title of this CKAN instance It appears in various "
+"places throughout CKAN.</p> <p><strong>Custom Stylesheet:</strong> Define an alternative main CSS"
+" file.</p> <p><strong>Site Tag Logo:</strong> This is the logo that appears in the header of all "
+"the CKAN instance templates.</p> <p><strong>About:</strong> This text will appear on this CKAN "
+"instances <a href=\"%(about_url)s\">about page</a>.</p> <p><strong>Intro Text:</strong> This text"
+" will appear on this CKAN instances <a href=\"%(home_url)s\">home page</a> as a welcome to "
+"visitors.</p> <p><strong>Custom CSS:</strong> This is a block of CSS that appears in "
+"<code>&lt;head&gt;</code> tag of every page. If you wish to customize the templates more fully we"
+" recommend <a href=\"%(docs_url)s\" target=\"_blank\" rel=\"noreferrer\">reading the "
+"documentation</a>.</p>"
+msgstr ""
+"<p><strong>Título del sitio:</strong> Este es el título de esta instancia de CKAN. Aparece en "
+"varios lugares dentro de CKAN.</p> <p><strong>Hoja de estilos personalizada:</strong> Defina un "
+"archivo CSS principal alternativo.</p> <p><strong>Logotipo de la etiqueta del sitio:</strong> "
+"Este es el logotipo que aparece en el encabezado de todas las plantillas de la instancia de "
+"CKAN.</p> <p><strong>Acerca de:</strong> Este texto aparecerá en las instancias de CKAN <a "
+"href=\"%(about_url)s\">sobre la página</a>.</p> <p><strong>Texto de introducción:</strong> Este "
+"texto aparecerá en las instancias de CKAN <a href=\"%(home_url)s\">página de inicio</a> como una "
+"bienvenida a los visitantes.</p> <p><strong>CSS personalizado:</strong> Este es un bloque de CSS "
+"que aparece en la etiqueta <code>&lt;head&gt;</code> de cada página. Si quiere personalizar las "
+"plantillas de forma más completa, recomendamos <a href=\"%(docs_url)s\" target=\"_blank\" "
+"rel=\"noreferrer\">leer la documentación</a>.</p>"
+
+msgid "<p>Add blog articles to CKAN here.</p>"
+msgstr "<p>Añada aquí las entradas del blog.</p>"
+
+#, python-format
+msgid ""
+"<p>As a sysadmin user you have full control over this CKAN instance. Proceed with care!</p> "
+"<p>For guidance on using sysadmin features, see the CKAN <a href=\"%(docs_url)s\" "
+"target=\"_blank\" rel=\"noreferrer\">sysadmin guide</a></p>"
+msgstr ""
+"<p>Como administrador del sistema tiene control total sobre este portal. ¡Actúe con "
+"precaución!</p> <p>Para más información sobre las funciones de administración, consulte la <a "
+"href=\"%(docs_url)s\" target=\"_blank\" rel=\"noreferrer\">guía de administración de CKAN</a></p>"
+
+msgid "Access resource data via a web API with powerful query support."
+msgstr "Acceda a los datos del recurso mediante una API web con consultas avanzadas."
+
+msgid "Active Revision"
+msgstr "Revisión activa"
+
+msgid "Activities"
+msgstr "Actividades"
+
+#, python-brace-format
+msgid "Activity occurred on: {time}"
+msgstr "Actividad realizada el: {time}"
+
+msgid "Add field"
+msgstr "Añadir campo"
+
+msgid "Add one option per line (press enter after each option is entered)"
+msgstr "Añada una opción por línea (pulse Intro después de cada una)"
+
+msgid "Add row"
+msgstr "Añadir fila"
+
+msgid "All dataset revisions"
+msgstr "Todas las revisiones de conjuntos de datos"
+
+#, python-brace-format
+msgid "Are you sure you want to delete collaborator - {name}?"
+msgstr "¿Está seguro de que quiere eliminar al colaborador - {name}?"
+
+msgid "Are you sure you want to delete the DataStore and Data Dictionary?"
+msgstr "¿Está seguro de que quiere eliminar el DataStore y el Diccionario de Datos?"
+
+#, python-brace-format
+msgid "Are you sure you want to delete user - {name}?"
+msgstr "¿Está seguro de que quiere eliminar al usuario - {name}?"
+
+msgid "Are you sure you want to purge datasets?"
+msgstr "¿Está seguro de que quiere purgar los conjuntos de datos?"
+
+msgid "Are you sure you want to purge groups?"
+msgstr "¿Está seguro de que quiere purgar los grupos?"
+
+msgid "Are you sure you want to purge organizations?"
+msgstr "¿Está seguro de que quiere purgar las organizaciones?"
+
+msgid "Are you sure you want to revoke these tokens?"
+msgstr "¿Está seguro de que quiere revocar estos tokens?"
+
+#, python-format
+msgid ""
+"Changed the image URL of <a href=\"%(group_link)s\">%(title)s</a> from <a "
+"href=\"%(old_url)s\">%(old_url)s</a> to <a href=\"%(new_url)s\">%(new_url)s</a>."
+msgstr ""
+"Cambió la URL de la imagen de <a href=\"%(group_link)s\">%(title)s</a> de <a "
+"href=\"%(old_url)s\">%(old_url)s</a> a <a href=\"%(new_url)s\">%(new_url)s</a>."
+
+#, python-format
+msgid ""
+"Changed the image URL of <a href=\"%(group_link)s\">%(title)s</a> to <a "
+"href=\"%(new_url)s\">%(new_url)s</a>."
+msgstr ""
+"Cambió la URL de la imagen de <a href=\"%(group_link)s\">%(title)s</a> a <a "
+"href=\"%(new_url)s\">%(new_url)s</a>."
+
+#, python-format
+msgid ""
+"Changed the image URL of <a href=\"%(org_link)s\">%(title)s</a> from <a "
+"href=\"%(old_url)s\">%(old_url)s</a> to <a href=\"%(new_url)s\">%(new_url)s</a>."
+msgstr ""
+"Cambió la URL de la imagen de <a href=\"%(org_link)s\">%(title)s</a> de <a "
+"href=\"%(old_url)s\">%(old_url)s</a> a <a href=\"%(new_url)s\">%(new_url)s</a>."
+
+#, python-format
+msgid ""
+"Changed the image URL of <a href=\"%(org_link)s\">%(title)s</a> to <a "
+"href=\"%(new_url)s\">%(new_url)s</a>."
+msgstr ""
+"Cambió la URL de la imagen de <a href=\"%(org_link)s\">%(title)s</a> a <a "
+"href=\"%(new_url)s\">%(new_url)s</a>."
+
+#, python-format
+msgid ""
+"Changed the license of <a href=\"%(pkg_link)s\">%(title)s</a> to %(new_license)s (previously "
+"%(old_license)s)."
+msgstr ""
+"Cambió la licencia de <a href=\"%(pkg_link)s\">%(title)s</a> a %(new_license)s (antes "
+"%(old_license)s)."
+
+#, python-format
+msgid ""
+"Changed the license of <a href=\"%(pkg_link)s\">%(title)s</a> to %(new_license)s (previously <a "
+"href=\"%(old_url)s\">%(old_license)s</a>)."
+msgstr ""
+"Cambió la licencia de <a href=\"%(pkg_link)s\">%(title)s</a> a %(new_license)s (antes <a "
+"href=\"%(old_url)s\">%(old_license)s</a>)."
+
+#, python-format
+msgid ""
+"Changed the license of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"%(new_url)s\">%(new_license)s</a> (previously %(old_license)s)."
+msgstr ""
+"Cambió la licencia de <a href=\"%(pkg_link)s\">%(title)s</a> a <a "
+"href=\"%(new_url)s\">%(new_license)s</a> (antes %(old_license)s)."
+
+#, python-format
+msgid ""
+"Changed the license of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"%(new_url)s\">%(new_license)s</a> (previously <a "
+"href=\"%(old_url)s\">%(old_license)s</a>)."
+msgstr ""
+"Cambió la licencia de <a href=\"%(pkg_link)s\">%(title)s</a> a <a "
+"href=\"%(new_url)s\">%(new_license)s</a> (antes <a href=\"%(old_url)s\">%(old_license)s</a>)."
+
+#, python-format
+msgid ""
+"Changed the source URL of <a href=\"%(pkg_link)s\">%(title)s</a> from <a "
+"href=\"%(old_src_url)s\">%(old_src_url)s</a> to <a href=\"%(new_src_url)s\">%(new_src_url)s</a>."
+msgstr ""
+"Cambió la URL de origen de <a href=\"%(pkg_link)s\">%(title)s</a> de <a "
+"href=\"%(old_src_url)s\">%(old_src_url)s</a> a <a href=\"%(new_src_url)s\">%(new_src_url)s</a>."
+
+#, python-format
+msgid ""
+"Changed the source URL of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"%(new_src_url)s\">%(new_src_url)s</a>."
+msgstr ""
+"Cambió la URL de origen de <a href=\"%(pkg_link)s\">%(title)s</a> a <a "
+"href=\"%(new_src_url)s\">%(new_src_url)s</a>."
+
+msgid "Choices"
+msgstr "Opciones"
+
+msgid "Close modal"
+msgstr "Cerrar ventana"
+
+msgid "Code examples:"
+msgstr "Ejemplos de código:"
+
+msgid "Copy to clipboard"
+msgstr "Copiar al portapapeles"
+
+msgid "Create a custom table for your data"
+msgstr "Crear una tabla personalizada para sus datos"
+
+#, python-brace-format
+msgid "Current resource: {name}"
+msgstr "Recurso actual: {name}"
+
+msgid "Dataset Revisions per Week"
+msgstr "Revisiones de conjuntos de datos por semana"
+
+msgid "Dataset not found or you have no permission to view it"
+msgstr "El conjunto de datos no se encontró o no tiene permiso para verlo"
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Date format"
+msgstr "Formato de fecha"
+
+msgid "Delete a record:"
+msgstr "Borrar un registro:"
+
+msgid "Delete activities older than a day"
+msgstr "Eliminar actividades de hace más de un día"
+
+msgid "Delete activities older than a month"
+msgstr "Eliminar actividades de hace más de un mes"
+
+msgid "Delete activities older than a year"
+msgstr "Eliminar actividades de hace más de un año"
+
+msgid "Delete all"
+msgstr "Eliminar todo"
+
+msgid "Delete all activities"
+msgstr "Eliminar todas las actividades"
+
+#, python-brace-format
+msgid "Delete all {count} activities? This cannot be undone."
+msgstr "¿Eliminar las {count} actividades? No se puede deshacer."
+
+msgid "Delete collaborator"
+msgstr "Eliminar colaborador"
+
+msgid "Delete member"
+msgstr "Eliminar miembro"
+
+msgid "Delete row"
+msgid_plural "Delete rows"
+msgstr[0] "Eliminar fila"
+msgstr[1] "Eliminar filas"
+
+msgid "Delete rows"
+msgstr "Eliminar filas"
+
+msgid "Delete this collaborator from the dataset"
+msgstr "Eliminar a este colaborador del conjunto de datos"
+
+msgid "Delete this member from the group"
+msgstr "Eliminar a este miembro del grupo"
+
+msgid "Delete this member from the organization"
+msgstr "Eliminar a este miembro de la organización"
+
+#, python-brace-format
+msgid "Delete {count} activities older than a day? This cannot be undone."
+msgstr "¿Eliminar {count} actividades de hace más de un día? No se puede deshacer."
+
+#, python-brace-format
+msgid "Delete {count} activities older than a month? This cannot be undone."
+msgstr "¿Eliminar {count} actividades de hace más de un mes? No se puede deshacer."
+
+#, python-brace-format
+msgid "Delete {count} activities older than a year? This cannot be undone."
+msgstr "¿Eliminar {count} actividades de hace más de un año? No se puede deshacer."
+
+#, python-brace-format
+msgid "Delete {num} row?"
+msgid_plural "Delete {num} rows?"
+msgstr[0] "¿Eliminar {num} fila?"
+msgstr[1] "¿Eliminar {num} filas?"
+
+msgid "Deleting"
+msgstr "Borrado"
+
+msgid "Edit Data Dictionary"
+msgstr "Editar diccionario de datos"
+
+msgid "Edit role"
+msgstr "Editar rol"
+
+msgid "Edit row"
+msgstr "Editar fila"
+
+msgid "Edit the role of the user within the group"
+msgstr "Editar el rol del usuario en el grupo"
+
+msgid "Edit the role of the user within the organization"
+msgstr "Editar el rol del usuario en la organización"
+
+msgid "Ellipsis length"
+msgstr "Longitud antes de recortar"
+
+msgid "Facebook"
+msgstr "Facebook"
+
+msgid "Field identifier or column heading when exported to CSV"
+msgstr "Identificador del campo o cabecera de la columna al exportar a CSV"
+
+#, python-brace-format
+msgid "Field {num} removed. Click Save below to save your changes and delete all data in this field."
+msgstr ""
+"Campo {num} quitado. Pulse Guardar para aplicar los cambios y borrar todos los datos de este "
+"campo."
+
+#, python-brace-format
+msgid "Filter by: {title}"
+msgstr "Filtrar por: {title}"
+
+#, python-format
+msgid ""
+"Further information in the <a href=\"%(url)s\" target=\"_blank\">main CKAN Data API and DataStore"
+" documentation</a>.</p>"
+msgstr ""
+"Más información en la <a href=\"%(url)s\" target=\"_blank\">documentación de la API de datos y el"
+" DataStore de CKAN</a>.</p>"
+
+msgid "Get 5 results containing \"jones\" in any field:"
+msgstr "Obtener 5 resultados que contengan \"jones\" en cualquier campo:"
+
+msgid "Get results filtered by the contents of specific fields:"
+msgstr "Obtener resultados filtrados por el contenido de campos concretos:"
+
+msgid "Get results with either \"watershed\" or \"survey\" as subject and \"active\" as its stage:"
+msgstr "Obtener resultados con \"watershed\" o \"survey\" como asunto y \"active\" como estado:"
+
+msgid "Header Order"
+msgstr "Orden en la cabecera"
+
+msgid "Hide All"
+msgstr "Ocultar todo"
+
+msgid "Hide metadata diff"
+msgstr "Ocultar cambios en los metadatos"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "Immutable"
+msgstr "Inmutable"
+
+msgid "Insert a new record:"
+msgstr "Insertar un registro nuevo:"
+
+msgid "Inserting and Updating"
+msgstr "Inserción y actualización"
+
+msgid ""
+"Length at which data will be truncated with an ellipsis for display. Set to zero for no "
+"truncation, and for data to be wrapped at column name width instead."
+msgstr ""
+"Longitud a partir de la cual los datos se recortan con puntos suspensivos. Con cero no se "
+"recortan y se ajustan al ancho del nombre de la columna."
+
+msgid "List view/Responsive display"
+msgstr "Vista de lista / adaptable"
+
+msgid "Maximum"
+msgstr "Máximo"
+
+msgid "Maximum permitted value for data in this column"
+msgstr "Valor máximo permitido en esta columna"
+
+msgid "Minimum"
+msgstr "Mínimo"
+
+msgid "Minimum permitted value for data in this column"
+msgstr "Valor mínimo permitido en esta columna"
+
+msgid ""
+"Moment.js date format to use for displaying dates (see <a "
+"href=\"https://devhints.io/moment#formatting-1\" target=\"_blank\">Moment.js cheatsheet</a>). If "
+"<b>NONE</b>, the raw timestamp value will be shown."
+msgstr ""
+"Formato de fecha de Moment.js para mostrar las fechas (ver la <a "
+"href=\"https://devhints.io/moment#formatting-1\" target=\"_blank\">referencia de Moment.js</a>). "
+"Con <b>NONE</b> se muestra la marca de tiempo sin formato."
+
+msgid "Most Edited Datasets"
+msgstr "Conjuntos de datos más editados"
+
+#, python-format
+msgid ""
+"Moved <a href=\"%(pkg_link)s\">%(title)s</a> from <a href=\"%(old_url)s\">%(old_url)s</a> to <a "
+"href=\"%(new_url)s\">%(new_url)s</a>."
+msgstr ""
+"Movió <a href=\"%(pkg_link)s\">%(title)s</a> de <a href=\"%(old_url)s\">%(old_url)s</a> a <a "
+"href=\"%(new_url)s\">%(new_url)s</a>."
+
+#, python-brace-format
+msgid "Navigate to Home - {site_title}"
+msgstr "Ir a la portada - {site_title}"
+
+#, python-brace-format
+msgid "Navigate to dataset: {title}"
+msgstr "Ir al conjunto de datos: {title}"
+
+#, python-brace-format
+msgid "Navigate to resource: {name_or_id}"
+msgstr "Ir al recurso: {name_or_id}"
+
+#, python-brace-format
+msgid "Navigate to resource: {name}"
+msgstr "Ir al recurso: {name}"
+
+msgid "New datasets"
+msgstr "Nuevos conjuntos de datos"
+
+msgid "No edited datasets"
+msgstr "No hay conjuntos de datos editados"
+
+msgid "Notification"
+msgstr "Notificación"
+
+msgid "Number of edits"
+msgstr "Número de ediciones"
+
+msgid "Obligation"
+msgstr "Obligatoriedad"
+
+#, python-brace-format
+msgid "Open details page for dataset - {title}"
+msgstr "Abrir la página del conjunto de datos - {title}"
+
+#, python-brace-format
+msgid "Open details page for {name}"
+msgstr "Abrir la página de detalles de {name}"
+
+msgid "Optional"
+msgstr "Opcional"
+
+msgid "Pattern"
+msgstr "Patrón"
+
+msgid "Placeholder"
+msgstr "Texto de ejemplo"
+
+msgid "Please Confirm"
+msgstr "Confirme, por favor"
+
+msgid "Primary key"
+msgstr "Clave primaria"
+
+msgid "Publish"
+msgstr "Publicar"
+
+msgid "Purge activities by age. Use 'ckan clean activities' via CLI for more options."
+msgstr ""
+"Purgar actividades según su antigüedad. Para más opciones, use 'ckan clean activities' en la "
+"línea de comandos."
+
+msgid ""
+"Purge activity stream entries by age. Each option shows how many activities would be deleted. "
+"Purging is irreversible."
+msgstr ""
+"Purgar entradas del flujo de actividad según su antigüedad. Cada opción indica cuántas "
+"actividades se eliminarían. La purga no se puede deshacer."
+
+msgid "Reactivate Profile"
+msgstr "Reactivar perfil"
+
+msgid "Refit"
+msgstr "Reajustar"
+
+#, python-brace-format
+msgid "Remove applied filter: {value}"
+msgstr "Quitar el filtro aplicado: {value}"
+
+msgid "Remove field"
+msgstr "Quitar campo"
+
+#, python-format
+msgid "Removed author email from <a href=\"%(pkg_link)s\">%(title)s</a>."
+msgstr "Eliminó el correo del autor de <a href=\"%(pkg_link)s\">%(title)s</a>."
+
+#, python-brace-format
+msgid "Removed description from {group_link}"
+msgstr "Eliminó la descripción de {group_link}"
+
+#, python-brace-format
+msgid "Removed description from {org_link}"
+msgstr "Eliminó la descripción de {org_link}"
+
+#, python-format
+msgid "Removed maintainer email from <a href=\"%(pkg_link)s\">%(title)s</a>."
+msgstr "Eliminó el correo del responsable de <a href=\"%(pkg_link)s\">%(title)s</a>."
+
+#, python-format
+msgid "Removed the image URL from <a href=\"%(group_link)s\">%(title)s</a>."
+msgstr "Eliminó la URL de la imagen de <a href=\"%(group_link)s\">%(title)s</a>."
+
+#, python-format
+msgid "Removed the image URL from <a href=\"%(org_link)s\">%(title)s</a>."
+msgstr "Eliminó la URL de la imagen de <a href=\"%(org_link)s\">%(title)s</a>."
+
+#, python-format
+msgid "Removed the source URL from <a href=\"%(pkg_link)s\">%(title)s</a>."
+msgstr "Eliminó la URL de origen de <a href=\"%(pkg_link)s\">%(title)s</a>."
+
+msgid "Required"
+msgstr "Obligatorio"
+
+#, python-brace-format
+msgid "Resource URL: {url}"
+msgstr "URL del recurso: {url}"
+
+msgid "Restore"
+msgstr "Restaurar"
+
+msgid "Revisions"
+msgstr "Revisiones"
+
+msgid "Revoke tokens"
+msgstr "Revocar tokens"
+
+msgid "SQL query example:"
+msgstr "Ejemplo de consulta SQL:"
+
+msgid "Save this resource, then customize the table from the Data Dictionary tab"
+msgstr "Guarde este recurso y después personalice la tabla desde la pestaña Diccionario de datos"
+
+#, python-brace-format
+msgid "Search datasets by {name}: {label}"
+msgstr "Buscar conjuntos de datos por {name}: {label}"
+
+#, python-brace-format
+msgid "Search datasets with the tag: {name}"
+msgstr "Buscar conjuntos de datos con la etiqueta: {name}"
+
+#, python-brace-format
+msgid "Search datasets with the tag: {tag}"
+msgstr "Buscar conjuntos de datos con la etiqueta: {tag}"
+
+msgid "Searching..."
+msgstr "Buscando…"
+
+#, python-format
+msgid ""
+"Set author email of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"mailto:%(new_email)s\">%(new_email)s</a> (previously <a "
+"href=\"mailto:%(old_email)s\">%(old_email)s</a>)."
+msgstr ""
+"Cambió el correo del autor de <a href=\"%(pkg_link)s\">%(title)s</a> a <a "
+"href=\"mailto:%(new_email)s\">%(new_email)s</a> (antes <a "
+"href=\"mailto:%(old_email)s\">%(old_email)s</a>)."
+
+#, python-format
+msgid ""
+"Set author email of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"mailto:%(new_email)s\">%(new_email)s</a>."
+msgstr ""
+"Fijó el correo del autor de <a href=\"%(pkg_link)s\">%(title)s</a> en <a "
+"href=\"mailto:%(new_email)s\">%(new_email)s</a>."
+
+#, python-format
+msgid ""
+"Set format of resource <a href=\"%(resource_url)s\">%(resource_name)s</a> to <a "
+"href=\"%(format_url)s\">%(format)s</a> in <a href=\"%(pkg_link)s\">%(title)s</a>."
+msgstr ""
+"Fijó el formato del recurso <a href=\"%(resource_url)s\">%(resource_name)s</a> en <a "
+"href=\"%(format_url)s\">%(format)s</a> en <a href=\"%(pkg_link)s\">%(title)s</a>."
+
+#, python-format
+msgid ""
+"Set format of resource <a href=\"%(resource_url)s\">%(resource_name)s</a> to <a "
+"href=\"%(new_format_url)s\">%(new_format)s</a> (previously <a "
+"href=\"%(old_format_url)s\">%(old_format)s</a>)."
+msgstr ""
+"Cambió el formato del recurso <a href=\"%(resource_url)s\">%(resource_name)s</a> a <a "
+"href=\"%(new_format_url)s\">%(new_format)s</a> (antes <a "
+"href=\"%(old_format_url)s\">%(old_format)s</a>)."
+
+#, python-format
+msgid ""
+"Set maintainer email of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"mailto:%(new_maintainer_email)s\">%(new_maintainer_email)s</a> (previously <a "
+"href=\"mailto:%(old_maintainer_email)s\">%(old_maintainer_email)s</a>)."
+msgstr ""
+"Cambió el correo del responsable de <a href=\"%(pkg_link)s\">%(title)s</a> a <a "
+"href=\"mailto:%(new_maintainer_email)s\">%(new_maintainer_email)s</a> (antes <a "
+"href=\"mailto:%(old_maintainer_email)s\">%(old_maintainer_email)s</a>)."
+
+#, python-format
+msgid ""
+"Set maintainer email of <a href=\"%(pkg_link)s\">%(title)s</a> to <a "
+"href=\"mailto:%(new_maintainer_email)s\">%(new_maintainer_email)s</a>."
+msgstr ""
+"Fijó el correo del responsable de <a href=\"%(pkg_link)s\">%(title)s</a> en <a "
+"href=\"mailto:%(new_maintainer_email)s\">%(new_maintainer_email)s</a>."
+
+msgid "Show All"
+msgstr "Mostrar todo"
+
+msgid "Show metadata diff"
+msgstr "Mostrar cambios en los metadatos"
+
+msgid "Some API endpoints may be accessed using a GET query string."
+msgstr "Algunos puntos de acceso de la API se pueden consultar con una petición GET."
+
+msgid "Table Designer"
+msgstr "Diseñador de tablas"
+
+msgid "The value may be set once then not changed afterwards"
+msgstr "El valor se puede fijar una vez y después no se puede cambiar"
+
+msgid "There are currently no groups for this site."
+msgstr "Actualmente no hay grupos en este portal."
+
+msgid "There are no groups associated with this dataset."
+msgstr "Este conjunto de datos no está asociado a ningún grupo."
+
+msgid "There is no description for this dataset."
+msgstr "Este conjunto de datos no tiene descripción."
+
+msgid "There is no description for this organization."
+msgstr "Esta organización no tiene descripción."
+
+msgid "This account is deactivated, if you want to reactivate it, please click on checkbox."
+msgstr "Esta cuenta está desactivada. Si quiere reactivarla, haga clic en la casilla."
+
+msgid "This blog currently has no revisions"
+msgstr "Este blog todavía no tiene revisiones"
+
+msgid "This field may not be modified once set"
+msgstr "Este campo no se puede modificar una vez fijado"
+
+msgid "This information is visible to you and admins"
+msgstr "Esta información solo la ven usted y los administradores"
+
+msgid "This page currently has no revisions"
+msgstr "Esta página todavía no tiene revisiones"
+
+msgid "Total Number of Datasets"
+msgstr "Número total de conjuntos de datos"
+
+msgid "Total datasets"
+msgstr "Total de conjuntos de datos"
+
+msgid "Total number of Datasets"
+msgstr "Número total de conjuntos de datos"
+
+#, python-brace-format
+msgid "Unlink {name} from the dataset"
+msgstr "Desvincular {name} del conjunto de datos"
+
+msgid "Unpublish"
+msgstr "Despublicar"
+
+msgid "Update an existing record:"
+msgstr "Actualizar un registro existente:"
+
+#, python-brace-format
+msgid ""
+"Updated description of {group_link} from <br class=\"line-"
+"height2\"><blockquote>{old_description}</blockquote> to <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+msgstr ""
+"Cambió la descripción de {group_link} de <br class=\"line-"
+"height2\"><blockquote>{old_description}</blockquote> a <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+
+#, python-brace-format
+msgid ""
+"Updated description of {group_link} to <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+msgstr ""
+"Cambió la descripción de {group_link} a <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+
+#, python-brace-format
+msgid ""
+"Updated description of {org_link} from <br class=\"line-"
+"height2\"><blockquote>{old_description}</blockquote> to <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+msgstr ""
+"Cambió la descripción de {org_link} de <br class=\"line-"
+"height2\"><blockquote>{old_description}</blockquote> a <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+
+#, python-brace-format
+msgid ""
+"Updated description of {org_link} to <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+msgstr ""
+"Cambió la descripción de {org_link} a <br class=\"line-"
+"height2\"><blockquote>{new_description}</blockquote>"
+
+msgid "Upload a file on your computer"
+msgstr "Subir un fichero desde su equipo"
+
+#, python-format
+msgid "Use the <a href=\"%(url)s\">Data Dictionary</a> tab to customize this table."
+msgstr "Use la pestaña <a href=\"%(url)s\">Diccionario de datos</a> para personalizar esta tabla."
+
+msgid "Using the API with this Web Browser"
+msgstr "Usar la API desde este navegador"
+
+msgid "View Page"
+msgstr "Ver página"
+
+#, python-format
+msgid "View changes from %(old_select)s to %(new_select)s"
+msgstr "Ver cambios desde %(old_select)s hasta %(new_select)s"
+
+msgid "X"
+msgstr "X"
+
+#, python-format
+msgid ""
+"You can use <a href=\"#markdown\" title=\"Markdown quick reference\" data-bs-toggle=\"popover\" "
+"data-bs-content=\"%(markdown_tooltip)s\" data-bs-html=\"true\">Markdown formatting</a> here"
+msgstr ""
+"Puede usar <a href=\"#markdown\" title=\"Referencia rápida de Markdown\" data-bs-"
+"toggle=\"popover\" data-bs-content=\"%(markdown_tooltip)s\" data-bs-html=\"true\">formato "
+"Markdown</a> aquí"
+
+#, python-format
+msgid ""
+"Your browser doesn't support <code>HTML5 audio</code>. Here is a <a href=\"%(res_url)s\" "
+"alt=\"audio url\">link to the audio</a> instead."
+msgstr ""
+"Su navegador no soporta <code>HTML5 audio</code>. Aquí tiene un <a href=\"%(res_url)s\" "
+"alt=\"audio url\">link al audio</a> en su lugar."
+
+msgid "active"
+msgstr "activo"
+
+msgid "close"
+msgstr "cerrar"
+
+msgid "deleted"
+msgstr "eliminado"
+
+msgid "draft"
+msgstr "borrador"
+
+#, python-brace-format
+msgid "{actor} created resource view {view_link}"
+msgstr "{actor} creó la vista de recurso {view_link}"
+
+#, python-brace-format
+msgid "{actor} deleted resource view \"{view_title}\" for resource {resource_link}"
+msgstr "{actor} eliminó la vista \"{view_title}\" del recurso {resource_link}"
+
+#, python-brace-format
+msgid "{actor} updated page at {date}"
+msgstr "{actor} actualizó la página el {date}"
+
+#, python-brace-format
+msgid "{actor} updated resource view {view_link}"
+msgstr "{actor} actualizó la vista de recurso {view_link}"
+
+#, python-brace-format
+msgid "{num} Member"
+msgid_plural "{num} Members"
+msgstr[0] "{num} miembro"
+msgstr[1] "{num} miembros"
+

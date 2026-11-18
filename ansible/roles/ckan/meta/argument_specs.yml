@@ -1,0 +1,46 @@
+---
+argument_specs:
+  main:
+    short_description: Instancia independiente de la baseline CKAN oGov.tech (Docker Compose)
+    options:
+      ckan_instance_name:
+        type: str
+        required: true
+        description: Identificador único (proyecto Compose, directorio y volúmenes).
+      ckan_base_dir: {type: str, default: /opt/ogov-ckan}
+      ckan_baseline_dir:
+        type: str
+        required: true
+        description: Ruta (en el nodo de control) al repositorio de la baseline, en la versión a desplegar.
+      ckan_image: {type: str, required: true, description: "Imagen de la baseline, p. ej. registry/ogov/ckan:v1.1.0"}
+      ckan_image_pull: {type: bool, default: true, description: "false si la imagen ya está en el servidor"}
+      ckan_http_port: {type: int, required: true}
+      ckan_site_url: {type: str, required: true}
+      ckan_site_title: {type: str, required: true}
+      ckan_site_id: {type: str, required: true}
+      ckan_sysadmin_name: {type: str, default: ckan_admin}
+      ckan_sysadmin_email: {type: str, required: true}
+      ckan_dir3_code: {type: str, default: ""}
+      ckan_spatial_uri: {type: str, default: ""}
+      ckan_catalog_issued: {type: str, default: ""}
+      ckan_env: {type: str, default: production, choices: [production, development]}
+      ckan_db_name: {type: str, default: ckandb}
+      ckan_db_user: {type: str, default: ckandbuser}
+      ckan_datastore_db: {type: str, default: datastore}
+      ckan_datastore_ro_user: {type: str, default: datastore_ro}
+      ckan_health_retries: {type: int, default: 60}
+      ckan_health_host: {type: str, default: 127.0.0.1}
+      ckan_expected_plugins: {type: list, elements: str, required: false}
+      ckan_transparencia_config:
+        type: str
+        default: ""
+        description: YAML del conector de transparencia (nodo de control). Vacío = sin sincronización.
+      ckan_transparencia_cron:
+        type: dict
+        description: "Programación cron de la sincronización (minute, hour, day, month, weekday)."
+      vault_ckan_secret_key: {type: str, required: true, no_log: true}
+      vault_ckan_jwt_secret: {type: str, required: true, no_log: true}
+      vault_ckan_sysadmin_password: {type: str, required: true, no_log: true}
+      vault_postgres_password: {type: str, required: true, no_log: true}
+      vault_ckan_db_password: {type: str, required: true, no_log: true}
+      vault_datastore_ro_password: {type: str, required: true, no_log: true}

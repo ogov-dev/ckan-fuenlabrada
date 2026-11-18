@@ -1,0 +1,6 @@
+---
+ansible_user: despliegue
+ansible_become: true
+# Versión de la baseline: misma imagen para todas las instancias.
+ckan_image: registry.ejemplo.internal/ogov/ckan:v1.1.0
+ckan_baseline_dir: "{{ playbook_dir }}/../.."

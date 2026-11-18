@@ -132,7 +132,18 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
   padding: .5rem .75rem;
 }
 .masthead .site-search .btn { color: var(--ogov-on-primary); }
-.masthead .navbar-toggler { border-color: rgba(255,255,255,.5); }
+.masthead .navbar-toggler {
+  border-color: rgba(255,255,255,.5);
+  min-width: 44px; min-height: 44px;            /* objetivo táctil recomendado */
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ---------- Rejilla ---------------------------------------------------------- */
+/* CKAN fija el padding del .container en 6px, pero las filas mantienen el
+   margen negativo de Bootstrap (-12px): desbordamiento horizontal de 6px en las
+   páginas interiores cuando el contenedor ocupa todo el ancho (móvil, 768px,
+   992px). Se restablece la regla de Bootstrap: margen de fila = padding. */
+.container > .row { margin-left: -6px; margin-right: -6px; }
 
 /* ---------- Títulos de página y migas -------------------------------------- */
 .toolbar .breadcrumb a, .toolbar .breadcrumb li { color: var(--ogov-primary); font-weight: 500; }
@@ -274,6 +285,18 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
 }
 .ogov-group-badge .ogov-icon { width: 44px; height: 44px; }
 
+/* Ficha de grupo (barra lateral): misma baldosa con el icono de la temática */
+/* Más específico que ".context-info .image a { display:block }" de CKAN */
+.context-info .image a.ogov-group-badge--info {
+  display: flex; align-items: center; justify-content: center;
+  height: auto;
+  width: 100%; aspect-ratio: 16 / 10; max-width: 240px;
+  background: var(--ogov-primary); color: var(--ogov-on-primary);
+  border-radius: var(--ogov-radius-lg);
+}
+.context-info .image a.ogov-group-badge--info .ogov-icon { width: 56px; height: 56px; }
+.context-info .image a.ogov-group-badge--info:hover { opacity: .9; text-decoration: none; }
+
 .ogov-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
 .ogov-card {
   display: flex; flex-direction: column; gap: .5rem;
@@ -326,6 +349,13 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
 .ogov-footer__ckan { font-weight: 700; }
 
 @media (max-width: 767.98px) {
+  /* CKAN muestra en móvil la barra lateral (organización, seguidores, redes)
+     ANTES del contenido. En un portal de datos, primero el contenido. */
+  .row.wrapper { flex-direction: column; }
+  .row.wrapper > .primary { order: 1; }
+  .row.wrapper > .secondary { order: 2; margin-top: 1rem; }
+  .secondary .context-info .image img,
+  .secondary .module-narrow .image img { max-height: 96px; width: auto; }
   .ogov-footer__main { grid-template-columns: 1fr; text-align: center; }
   .ogov-footer__brand, .ogov-footer__contact { justify-self: center; }
   .ogov-hero__search { flex-direction: column; }
@@ -336,3 +366,34 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
   .ogov-stat, .ogov-tile, .ogov-card { transition: none; }
   .ogov-stat:hover, .ogov-tile:hover, .ogov-card:hover { transform: none; }
 }
+
+/* Recurso sin vista previa (enlace externo o fichero no previsualizable) */
+.ogov-no-preview {
+  display: flex; flex-direction: column; align-items: center; gap: .75rem;
+  text-align: center; padding: 2rem 1rem; margin: 1rem 0;
+  background: var(--ogov-surface-alt); border-radius: var(--ogov-radius-lg);
+}
+.ogov-no-preview__icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ogov-primary); color: var(--ogov-on-primary); font-size: 1.3rem;
+}
+.ogov-no-preview p { margin: 0; }
+
+/* Flecha del elemento activo de los menús laterales (core: ::before con
+   right:-6px). Apunta al contenido cuando la columna lateral está al lado; en
+   móvil la columna ocupa todo el ancho y la flecha desbordaba 6 px. */
+@media (max-width: 767.98px) {
+  .nav-simple .nav-item.active > a::before { display: none; }
+}
+
+/* Formato visible junto al nombre del recurso (ficha del conjunto de datos). */
+.resource-item .ogov-res-format {
+  display: inline-block; margin-left: .5rem; padding: .05rem .45rem;
+  border: 1px solid var(--ogov-primary, #003f80); border-radius: .25rem;
+  color: var(--ogov-primary, #003f80); font-size: .75rem; font-weight: 600;
+  line-height: 1.4; text-transform: uppercase; vertical-align: middle;
+}
+/* Bloques repetibles sin cabecera cuando solo hay uno. */
+.ogov-subfields .panel-body { padding-top: 0; }
+.ogov-subfields .scheming-subfield-list { margin-bottom: 0; }

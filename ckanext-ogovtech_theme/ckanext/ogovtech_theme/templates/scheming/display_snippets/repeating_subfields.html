@@ -1,0 +1,33 @@
+{#
+  Bloques repetibles (cobertura, punto de contacto…) sin ruido: se omiten los
+  bloques y subcampos vacíos, y el número ("Contacto 1") solo se muestra si
+  hay más de un bloque.
+#}
+{% set blocks = h.ogovtech_non_empty(data[field.field_name]) %}
+
+{% block subfield_display %}
+  {% for field_data in blocks %}
+    <div class="panel panel-default ogov-subfields">
+      {% if blocks | length > 1 %}
+        <header class="panel-heading">
+          {{ h.scheming_language_text(field.repeating_label or field.label) }} {{ loop.index }}
+        </header>
+      {% endif %}
+      <div class="panel-body">
+        <dl class="scheming-subfield-list">
+          {% for subfield in field.repeating_subfields if h.ogovtech_has_value(field_data.get(subfield.field_name)) %}
+            <dt class="dataset-label">{{ h.scheming_language_text(subfield.label) }}</dt>
+            <dd>
+            {%- snippet 'scheming/snippets/display_field.html',
+              field=subfield,
+              data=field_data,
+              entity_type=entity_type,
+              object_type=object_type
+            -%}
+            </dd>
+          {% endfor %}
+        </dl>
+      </div>
+    </div>
+  {% endfor %}
+{% endblock %}

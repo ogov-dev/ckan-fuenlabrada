@@ -1,0 +1,7 @@
+{% ckan_extends %}
+
+{# Recuento de miembros en español (el original queda en inglés: "1 Member"). #}
+{% block members %}
+  {% set n = organization.member_count or 0 if 'member_count' in organization else 0 %}
+  <span class="count">{{ ungettext('{num} miembro', '{num} miembros', n).format(num=n) }}</span>
+{% endblock %}

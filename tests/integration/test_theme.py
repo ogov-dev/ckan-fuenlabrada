@@ -1,0 +1,371 @@
+"""Tema común (ckanext-ogovtech_theme): validadores, helpers, configuración y plantillas."""
+import pytest
+
+import ckan.plugins.toolkit as tk
+from ckan.tests import factories, helpers
+
+from ckanext.ogovtech_theme import plugin as theme
+
+
+@pytest.mark.parametrize("valor,esperado", [("#ABC", "#abc"), ("#003f80", "#003f80"), ("", ""), (None, None)])
+def test_hex_color_valido(valor, esperado):
+    assert theme.hex_color(valor, {}) == esperado
+
+
+@pytest.mark.parametrize("valor", ["rojo", "#12", "003f80", "#gggggg", "#0000000"])
+def test_hex_color_invalido(valor):
+    with pytest.raises(tk.Invalid):
+        theme.hex_color(valor, {})
+
+
+def test_footer_links_validator():
+    ok = "Aviso legal|https://a.es\n\nAccesibilidad|/pages/accesibilidad\nCorreo|mailto:a@b.es"
+    assert theme.footer_links_validator(ok, {}) == ok
+    for malo in ("Sin separador", "Texto|javascript:alert(1)", "Texto|ftp://x"):
+        with pytest.raises(tk.Invalid):
+            theme.footer_links_validator(malo, {})
+
+
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.footer_links", "A|https://a\nmal formado\n B | /b \n|/vacío")
+@pytest.mark.usefixtures("with_plugins")
+def test_helper_enlaces():
+    assert theme.ogovtech_theme_footer_links() == [{"text": "A", "url": "https://a"}, {"text": "B", "url": "/b"}]
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+class TestConfiguracionEditable:
+    def _update(self, **cfg):
+        sysadmin = factories.Sysadmin()
+        return helpers.call_action("config_option_update", {"user": sysadmin["name"]}, **cfg)
+
+    def test_guarda_y_aplica(self, app):
+        self._update(**{"ckanext.ogovtech_theme.color_primary": "#7A1F3D",
+                        "ckanext.ogovtech_theme.footer_text": "Ayuntamiento de Prueba",
+                        "ckanext.ogovtech_theme.footer_legal_links": "Cookies|/pages/cookies"})
+        assert tk.config["ckanext.ogovtech_theme.color_primary"] == "#7a1f3d"
+        body = app.get("/").body
+        assert "--ogov-primary: #7a1f3d" in body
+        assert "Ayuntamiento de Prueba" in body and "/pages/cookies" in body
+
+    def test_rechaza_color_invalido(self):
+        with pytest.raises(tk.ValidationError) as e:
+            self._update(**{"ckanext.ogovtech_theme.color_primary": "azul"})
+        assert "ckanext.ogovtech_theme.color_primary" in e.value.error_dict
+
+    def test_formulario_admin(self, app):
+        sysadmin = factories.SysadminWithToken()
+        body = app.get("/ckan-admin/config", headers={"Authorization": sysadmin["token"]}).body
+        for campo in ("field-ogov-color_primary", "field-ogov-footer-links", "field-ogov-hero-image"):
+            assert campo in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+class TestPlantillas:
+    def test_portada_con_grupos_e_iconos(self, app):
+        factories.Group(name="medio-ambiente", title="Medio ambiente", image_url="")
+        body = app.get("/").body
+        assert "ogov-hero" in body and "ogov-stats" in body
+        assert 'class="ogov-tile__icon"' in body and "Medio ambiente" in body
+
+    def test_pie_ckan_y_ogov(self, app):
+        body = app.get("/").body
+        assert "basado en" in body and "ckan.org" in body
+        assert "Desarrollado por" in body and "ogov-logo.png" in body
+
+    def test_grupo_con_imagen_propia_la_respeta(self, app):
+        factories.Group(name="economia", title="Economía", image_url="https://example.org/logo.png")
+        body = app.get("/group/").body
+        assert "https://example.org/logo.png" in body and "ogov-group-badge" not in body
+
+    def test_listado_grupos_con_icono(self, app):
+        factories.Group(name="hacienda", title="Hacienda", image_url="")
+        assert "ogov-group-badge" in app.get("/group/").body
+
+    def test_fuente_alojada_localmente(self, app):
+        assert app.get("/ogovtech_theme/fonts/montserrat-latin-700.woff2").status_code == 200
+        assert "fonts.googleapis.com" not in app.get("/").body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+def test_portada_registra_errores_sin_romperse(app, monkeypatch, caplog):
+    """Si la búsqueda falla, la portada responde y el error queda en el log."""
+    original = tk.get_action
+
+    def falla(name):
+        if name == "package_search":
+            def boom(*a, **kw):
+                raise RuntimeError("solr caído")
+            return boom
+        return original(name)
+    monkeypatch.setattr(theme.tk, "get_action", falla)
+    with caplog.at_level("ERROR"):
+        assert app.get("/").status_code == 200
+    assert "no se pudieron obtener los datasets" in caplog.text
+
+
+@pytest.mark.parametrize("valor", ["https://ayto.es/fachada.jpg", "/uploads/hero.png", "", None])
+def test_safe_url_valida(valor):
+    assert theme.safe_url(valor, {}) == (valor.strip() if valor else valor)
+
+
+@pytest.mark.parametrize("valor", [
+    "x'); background:url(https://mal.example/x", 'https://a.es/"onload', "javascript:alert(1)",
+    "https://a.es/con espacio.jpg", "data:image/png;base64,AAAA", "https://a.es/x)y",
+])
+def test_safe_url_rechaza_inyeccion(valor):
+    with pytest.raises(tk.Invalid):
+        theme.safe_url(valor, {})
+
+
+@pytest.mark.parametrize("valor,ok", [("info@ayto.es", True), ("", True), ("sin-arroba", False), ("a@b", False)])
+def test_email(valor, ok):
+    if ok:
+        assert theme.email(valor, {}) == valor
+    else:
+        with pytest.raises(tk.Invalid):
+            theme.email(valor, {})
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+def test_config_rechaza_hero_malicioso():
+    sysadmin = factories.Sysadmin()
+    with pytest.raises(tk.ValidationError) as e:
+        helpers.call_action("config_option_update", {"user": sysadmin["name"]},
+                            **{"ckanext.ogovtech_theme.hero_image": "x'); color:red; ('"})
+    assert "ckanext.ogovtech_theme.hero_image" in e.value.error_dict
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+@pytest.mark.ckan_config("WTF_CSRF_ENABLED", False)
+def test_formulario_admin_muestra_error(app):
+    sysadmin = factories.SysadminWithToken()
+    r = app.post("/ckan-admin/config", headers={"Authorization": sysadmin["token"]},
+                 data={"ckanext.ogovtech_theme.color_primary": "azul", "save": ""})
+    assert "Introduce un color hexadecimal" in r.body
+
+
+@pytest.mark.usefixtures("with_plugins")
+def test_solo_espanol_sin_selector_de_idioma(app):
+    body = app.get("/").body
+    assert 'lang="es"' in body
+    assert "field-lang-select" not in body
+
+
+@pytest.mark.usefixtures("with_plugins")
+def test_selector_de_idioma_si_hay_varios(app, monkeypatch):
+    """CKAN calcula los idiomas al arrancar: se simula que hay dos."""
+    import ckan.lib.i18n as i18n
+    locales = []
+    for code in ("es", "ca"):
+        loc = i18n.Locale.parse(code)
+        loc.short_name = loc.identifier = code
+        locales.append(loc)
+    monkeypatch.setattr(i18n, "available_locales", locales)
+    assert "field-lang-select" in app.get("/").body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_ficha_de_grupo_con_icono(app):
+    factories.Group(name="demografia", title="Demografía", image_url="")
+    body = app.get("/group/demografia").body
+    assert "ogov-group-badge--info" in body and 'class="ogov-icon"' in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_ficha_de_grupo_con_imagen_propia(app):
+    factories.Group(name="hacienda", title="Hacienda", image_url="https://example.org/h.png")
+    body = app.get("/group/hacienda").body
+    assert "https://example.org/h.png" in body and "ogov-group-badge--info" not in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_titulo_de_recurso_sin_etiqueta_xloader_para_el_publico(app):
+    org = factories.Organization()
+    ds = factories.Dataset(owner_org=org["id"], license_id="odc-by",
+                           theme=["http://datos.gob.es/kos/sector-publico/sector/economia"],
+                           language=["http://publications.europa.eu/resource/authority/language/SPA"],
+                           resources=[{"url": "https://e.org/a.csv", "format": "CSV", "name": "Datos 2026"}])
+    body = app.get(f"/dataset/{ds['name']}").body
+    assert "Datos 2026" in body and 'data-format="csv"' in body
+    assert "loader-badge" not in body
+
+
+# ------------------------------------------------- favicon y fichas públicas ---
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.favicon", "https://example.org/favicon-municipio.png")
+@pytest.mark.usefixtures("with_plugins")
+def test_favicon_configurado(app):
+    assert theme.ogovtech_theme_favicon() == "https://example.org/favicon-municipio.png"
+    assert '<link rel="icon" href="https://example.org/favicon-municipio.png"' in app.get("/").body
+
+
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.favicon", "")
+@pytest.mark.ckan_config("ckan.site_logo", "https://example.org/escudo.png")
+@pytest.mark.usefixtures("with_plugins")
+def test_favicon_por_defecto_es_el_logotipo_del_sitio():
+    assert theme.ogovtech_theme_favicon() == "https://example.org/escudo.png"
+
+
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.favicon", "")
+@pytest.mark.ckan_config("ckan.site_logo", "")
+@pytest.mark.usefixtures("with_plugins")
+def test_sin_favicon_no_se_pinta_enlace(app):
+    assert theme.ogovtech_theme_favicon() == ""
+    assert 'rel="icon"' not in app.get("/").body
+
+
+def _dataset_con_recurso(**res):
+    org = factories.Organization()
+    return factories.Dataset(owner_org=org["id"], license_id="odc-by",
+                             theme=["http://datos.gob.es/kos/sector-publico/sector/economia"],
+                             language=["http://publications.europa.eu/resource/authority/language/SPA"],
+                             resources=[res])
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_recurso_externo_sin_vista_ofrece_abrirlo(app):
+    ds = _dataset_con_recurso(url="https://transparencia.example.org/visor/5", format="HTML", name="Visor")
+    res_id = ds["resources"][0]["id"]
+    assert not helpers.call_action("resource_view_list", id=res_id)
+    body = app.get(f"/dataset/{ds['name']}/resource/{res_id}").body
+    assert "ogov-no-preview" in body and "Abrir en una ventana nueva" in body
+    assert 'href="https://transparencia.example.org/visor/5" target="_blank" rel="noopener"' in body
+    assert "no existen vistas" not in body.lower() and "no views" not in body.lower()
+
+
+# ------------------------------------------- grupos, organizaciones, actividad ---
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+@pytest.mark.parametrize("tipo", ["group", "organization"])
+def test_pestana_miembros_solo_para_quien_puede_gestionarlos(app, tipo):
+    sysadmin = factories.SysadminWithToken()
+    grupo = (factories.Group if tipo == "group" else factories.Organization)(user=sysadmin)
+    publico = app.get(f"/{tipo}/{grupo['name']}").body
+    assert f"/{tipo}/members/{grupo['name']}" not in publico
+    assert f"/{tipo}/about/{grupo['name']}" in publico
+    admin = app.get(f"/{tipo}/{grupo['name']}", headers={"Authorization": sysadmin["token"]}).body
+    assert f"/{tipo}/members/{grupo['name']}" in admin
+
+
+@pytest.mark.ckan_config("ckan.plugins", "ogovtech_theme ogovtech_fixes activity dcat scheming_datasets")
+@pytest.mark.ckan_config("ckan.auth.public_user_details", "false")     # como en el portal
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_actividad_publica_en_espanol_y_sin_enlaces_rotos(app, migrate_db_for):
+    migrate_db_for("activity")
+    autor = factories.UserWithToken(name="editora-municipal", fullname="Editora Municipal")
+    org = factories.Organization(users=[{"name": autor["name"], "capacity": "editor"}])
+    grupo = factories.Group(name="hacienda", users=[{"name": autor["name"], "capacity": "member"}])
+    helpers.call_action("package_create", {"user": autor["name"]}, name="presupuesto", title="Presupuesto",
+                        notes="n", owner_org=org["id"], license_id="odc-by", groups=[{"name": "hacienda"}],
+                        theme=["http://datos.gob.es/kos/sector-publico/sector/hacienda"],
+                        language=["http://publications.europa.eu/resource/authority/language/SPA"])
+    assert f"/group/activity/{grupo['name']}" in app.get(f"/group/{grupo['name']}").body   # pestaña
+    body = app.get(f"/group/activity/{grupo['name']}").body
+    assert "Editora Municipal" in body                       # se ve quién lo hizo…
+    assert 'href="/user/editora-municipal"' not in body      # …sin enlazar a un perfil privado (403)
+    assert "Todos los tipos de actividad" in body and "Nueva vista de recurso" in body
+    assert "New Resource View" not in body and 'href="None"' not in body
+    admin = factories.SysadminWithToken()
+    body = app.get(f"/group/activity/{grupo['name']}", headers={"Authorization": admin["token"]}).body
+    assert 'href="/user/editora-municipal"' in body          # quien puede ver perfiles sí tiene enlace
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_recuento_de_miembros_en_espanol(app):
+    factories.Group(name="deportes", users=[{"name": factories.User()["name"], "capacity": "member"}])
+    body = app.get("/group/").body
+    assert "miembro" in body and "Member" not in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_recuento_de_miembros_de_organizacion_en_espanol(app):
+    factories.Organization(name="ayuntamiento", users=[{"name": factories.User()["name"], "capacity": "editor"}])
+    body = app.get("/organization/").body
+    assert "miembro" in body and "Member" not in body
+
+
+# -------------------------------------- campos vacíos y formato de recursos ---
+@pytest.mark.parametrize("valor,tiene", [
+    (None, False), ("", False), ("  ", False), ([], False), ({}, False),
+    ([{"name": "", "email": None}], False), ([{"name": "Ana"}], True),
+    ("x", True), (0, True), (False, True), ({"a": [" ", {"b": "y"}]}, True),
+])
+def test_has_value(valor, tiene):
+    assert theme.ogovtech_has_value(valor) is tiene
+
+
+def test_non_empty():
+    assert theme.ogovtech_non_empty([{"a": ""}, {"a": "x"}, None]) == [{"a": "x"}]
+    assert theme.ogovtech_non_empty("no es lista") == []
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_ficha_sin_filas_vacias_y_con_formato(app):
+    ds = _dataset_con_recurso(url="https://e.org/a.shp", format="SHP", name="Elementos")
+    sysadmin = factories.Sysadmin()
+    helpers.call_action("package_patch", {"user": sysadmin["name"]}, id=ds["id"],
+                        contact=[{"name": "Ayuntamiento de Prueba", "email": "", "url": ""}])
+    body = app.get(f"/dataset/{ds['name']}").body
+    assert "Frecuencia de actualización" not in body and "Cobertura geográfica" not in body
+    assert "Punto de contacto" in body and "Ayuntamiento de Prueba" in body
+    assert "Contacto 1" not in body and "Correo electrónico" not in body     # sin cabecera ni subcampos vacíos
+    assert 'class="ogov-res-format" aria-hidden="true">SHP<' in body
+
+
+# ------------------------------------------------------- traducciones propias ---
+@pytest.mark.usefixtures("with_plugins")
+def test_traducciones_propias_completan_y_corrigen_las_de_ckan(app):
+    from flask_babel import gettext
+    with app.flask_app.test_request_context():
+        assert gettext("Publish") == "Publicar"                              # faltaba
+        assert gettext("Navigate to dataset: {title}") == "Ir al conjunto de datos: {title}"
+        assert gettext("Upload a file on your computer") == "Subir un fichero desde su equipo"   # corregida
+        assert gettext("active") == "activo"
+
+
+def test_catalogo_de_traducciones_completo_y_coherente():
+    from pathlib import Path
+    from babel.messages.pofile import read_po
+    import re
+    po = Path(theme.__file__).parent / "i18n" / "es" / "LC_MESSAGES" / "ckanext-ogovtech_theme.po"
+    cat = read_po(po.open("rb"))
+    assert not cat.fuzzy and len(cat) > 150
+    marcas = lambda s: sorted(re.findall(r"%\(\w+\)s|\{\w+\}", s if isinstance(s, str) else " ".join(s)))
+    for m in cat:
+        if m.id:
+            assert m.string, f"sin traducir: {m.id!r}"
+            assert marcas(m.id) == marcas(m.string), f"marcadores distintos: {m.id!r}"
+            texto = m.string if isinstance(m.string, str) else " ".join(m.string)
+            assert not re.search(r"\b(podés|querés|tenés|hacé|Acá)\b", texto), f"voseo: {texto!r}"
+    assert po.with_suffix(".mo").stat().st_mtime >= po.stat().st_mtime - 5    # .mo regenerado
+
+
+# ------------------------------------------ ficha de recurso y accesibilidad ---
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_ficha_de_recurso_sin_campos_internos(app):
+    ds = _dataset_con_recurso(url="https://e.org/a.csv", format="CSV", name="Datos", size=2048, mimetype="text/csv")
+    body = app.get(f"/dataset/{ds['name']}/resource/{ds['resources'][0]['id']}").body
+    for interno in ("Package id", "Url type", "Position", "Has views", "State", "Datastore active"):
+        assert f">{interno}<" not in body, interno
+    assert "Tamaño" in body and "Tipo MIME" in body and "text/csv" in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_explorar_con_id_unico_por_recurso(app):
+    org = factories.Organization()
+    ds = factories.Dataset(owner_org=org["id"], license_id="odc-by",
+                           theme=["http://datos.gob.es/kos/sector-publico/sector/economia"],
+                           language=["http://publications.europa.eu/resource/authority/language/SPA"],
+                           resources=[{"url": "https://e.org/a.csv", "format": "CSV"},
+                                      {"url": "https://e.org/b.json", "format": "JSON"}])
+    body = app.get(f"/dataset/{ds['name']}").body
+    assert 'id="dropdownExplorer"' not in body
+    for r in ds["resources"]:
+        assert f'id="dropdownExplorer-{r["id"]}"' in body and f'aria-labelledby="dropdownExplorer-{r["id"]}"' in body
+
+
+@pytest.mark.usefixtures("with_plugins")
+def test_js_del_tema_y_ayuda_markdown_en_espanol(app):
+    assert "_ogovtech_theme.js" in app.get("/").body
+    sysadmin = factories.SysadminWithToken()
+    body = app.get("/dataset/new", headers={"Authorization": sysadmin["token"]}).body
+    assert "Sintaxis completa de Markdown" in body and "Full markdown syntax" not in body
+    assert "Puede usar" in body and "Podés" not in body

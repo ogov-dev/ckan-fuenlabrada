@@ -25,6 +25,10 @@
   {{ form.input(P ~ 'hero_image', id='field-ogov-hero-image', label=_('Imagen de fondo de la portada (URL)'), type='url',
                 value=data[P ~ 'hero_image'], error=errors[P ~ 'hero_image'], placeholder='https://…/fachada.jpg') }}
 
+  {{ form.input(P ~ 'favicon', id='field-ogov-favicon', label=_('Favicon del ayuntamiento (URL)'), type='url',
+                value=data[P ~ 'favicon'], error=errors[P ~ 'favicon'], placeholder='https://…/favicon.png') }}
+  <p class="form-text">{{ _('Si se deja vacío se usa el logotipo del portal.') }}</p>
+
   <fieldset class="mt-3">
     <legend>{{ _('Pie de página y contacto') }}</legend>
     {{ form.input(P ~ 'footer_text', id='field-ogov-footer-text', label=_('Texto del pie'),

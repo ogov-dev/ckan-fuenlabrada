@@ -1,0 +1,16 @@
+{# Paginación del flujo de actividad (ckanext-activity). El original genera
+   href="None" en el botón desactivado: aquí es un <span> sin enlace. #}
+{% if newer_activities_url or older_activities_url %}
+  <div hx-boost="true" hx-target="closest .module-content" id="activity_page_buttons" class="activity_buttons" style="margin-top: 25px;">
+    {% if newer_activities_url %}
+      <a href="{{ newer_activities_url }}" class="btn btn-secondary">{{ _('Newer activities') }}</a>
+    {% else %}
+      <span class="btn disabled" aria-disabled="true">{{ _('Newer activities') }}</span>
+    {% endif %}
+    {% if older_activities_url %}
+      <a href="{{ older_activities_url }}" class="btn btn-secondary">{{ _('Older activities') }}</a>
+    {% else %}
+      <span class="btn disabled" aria-disabled="true">{{ _('Older activities') }}</span>
+    {% endif %}
+  </div>
+{% endif %}
