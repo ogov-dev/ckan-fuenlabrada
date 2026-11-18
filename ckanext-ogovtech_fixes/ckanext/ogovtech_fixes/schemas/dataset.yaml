@@ -165,6 +165,21 @@ dataset_fields:
     - field_name: url
       label: URL
 
+# Fechas DCAT (dct:issued / dct:modified). Si faltan, ckanext-dcat usa
+# metadata_created / metadata_modified. La migración conserva aquí las fechas
+# originales del portal de origen.
+- field_name: issued
+  label: Fecha de publicación
+  preset: dcat_date
+  help_text: Fecha de primera publicación del conjunto de datos (si se deja vacía, la de alta en este portal).
+
+# Sin formulario: al editar el dataset desde la web desaparece y DCAT pasa a
+# usar la fecha real de la última modificación (metadata_modified).
+- field_name: modified
+  label: Fecha de modificación (origen)
+  preset: dcat_date
+  form_snippet: null
+
 - field_name: conforms_to
   label: Conforme a (normativa o estándar)
   preset: multiple_text
@@ -188,3 +203,12 @@ resource_fields:
   label: Formato
   preset: resource_format_autocomplete
   help_text: Si no se indica se deduce automáticamente.
+
+- field_name: issued
+  label: Fecha de publicación
+  preset: dcat_date
+
+- field_name: modified
+  label: Fecha de modificación (origen)
+  preset: dcat_date
+  form_snippet: null

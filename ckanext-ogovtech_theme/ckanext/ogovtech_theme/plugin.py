@@ -16,6 +16,8 @@ import logging
 import re
 from typing import Any
 
+from markupsafe import Markup
+
 import ckan.plugins as p
 import ckan.plugins.toolkit as tk
 
@@ -27,7 +29,7 @@ PREFIX = "ckanext.ogovtech_theme."
 
 COLOR_KEYS = ("color_primary", "color_secondary", "color_accent", "color_text_on_primary")
 TEXT_KEYS = (
-    "hero_image", "footer_text", "footer_links", "footer_legal_links",
+    "hero_image", "favicon", "footer_text", "footer_links", "footer_legal_links",
     "contact_email", "contact_phone", "contact_address",
 )
 EDITABLE_KEYS = COLOR_KEYS + TEXT_KEYS
@@ -95,6 +97,13 @@ def ogovtech_theme_get(key: str, default: str = "") -> str:
     return tk.config.get(PREFIX + key) or default
 
 
+def ogovtech_theme_favicon() -> str:
+    """Favicon del ayuntamiento: el configurado o, si no hay, su logotipo.
+    Nunca el de oGov ni el de CKAN: el portal es del ayuntamiento."""
+    url = tk.config.get(PREFIX + "favicon") or tk.config.get("ckan.site_logo") or ""
+    return tk.h.url_for_static_or_external(url) if url else ""
+
+
 def ogovtech_theme_colors() -> dict[str, str]:
     return {k: tk.config.get(PREFIX + k) for k in COLOR_KEYS}
 
@@ -136,6 +145,23 @@ def ogovtech_theme_home() -> dict[str, Any]:
     return {"stats": stats, "datasets": datasets, "groups": groups, "formats": formats}
 
 
+@tk.chained_helper
+def linked_user(next_helper, user, maxlength: int = 0, avatar: int = 20):
+    """Enlace al perfil del autor solo si quien navega puede verlo.
+
+    El flujo de actividad enlaza al usuario que hizo cada cambio, pero su perfil
+    no es público (``ckan.auth.public_user_details``): el enlace daba un 403.
+    Sin permiso se muestra el nombre sin enlace.
+    """
+    rendered = next_helper(user, maxlength, avatar)
+    user_id = getattr(user, "id", user)
+    try:
+        tk.check_access("user_show", {}, {"id": user_id})
+        return rendered
+    except (tk.NotAuthorized, tk.ObjectNotFound):
+        return Markup(rendered).striptags() if rendered else rendered
+
+
 @tk.blanket.config_declarations
 class OgovtechThemePlugin(p.SingletonPlugin):
     p.implements(p.IConfigurer)
@@ -158,6 +184,7 @@ class OgovtechThemePlugin(p.SingletonPlugin):
         schema[PREFIX + "footer_links"].append(footer_links_validator)
         schema[PREFIX + "footer_legal_links"].append(footer_links_validator)
         schema[PREFIX + "hero_image"].append(safe_url)
+        schema[PREFIX + "favicon"].append(safe_url)
         schema[PREFIX + "contact_email"].append(email)
         return schema
 
@@ -168,7 +195,9 @@ class OgovtechThemePlugin(p.SingletonPlugin):
             "ogovtech_theme_colors": ogovtech_theme_colors,
             "ogovtech_theme_footer_links": ogovtech_theme_footer_links,
             "ogovtech_theme_home": ogovtech_theme_home,
+            "ogovtech_theme_favicon": ogovtech_theme_favicon,
             "ogovtech_group_icon": ogovtech_group_icon,
+            "linked_user": linked_user,
         }
 
     # IValidators

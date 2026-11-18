@@ -17,3 +17,9 @@
   </style>
   {{ super() }}
 {% endblock %}
+
+{# Favicon del ayuntamiento (configurable en /ckan-admin/config). #}
+{% block links -%}
+  {%- set favicon = h.ogovtech_theme_favicon() -%}
+  {% if favicon %}<link rel="icon" href="{{ favicon }}" />{% endif %}
+{%- endblock %}

@@ -82,7 +82,7 @@ README.
    valen en preproducción (están firmados con otros secretos), lo que es correcto.
 3. **Desplegar la versión nueva en preproducción**: cambiar `ckan_image` en su
    inventario y ejecutar el playbook con `--limit <preproduccion>`.
-4. **Verificar**: aceptación 19/19, SHACL con 0 violaciones, revisión visual y,
+4. **Verificar**: aceptación 20/20, SHACL con 0 violaciones, revisión visual y,
    si hubo migración de base de datos, que los datos siguen ahí.
 
 ## 3. Actualizar producción

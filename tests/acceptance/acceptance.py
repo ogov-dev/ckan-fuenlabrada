@@ -111,6 +111,14 @@ class Acceptance:
             return "ckanext-pages responde (200)"
         self.check("CKAN", "ckanext-pages", pages)
 
+        def i18n_js():
+            r = self.s.get(self.url + "/api/i18n/es", timeout=60)
+            r.raise_for_status()
+            tr = r.json()
+            assert tr.get("Add Filter"), f"traducciones JavaScript vacías ({len(tr)} entradas)"
+            return f"{len(tr)} textos de la interfaz JavaScript en español"
+        self.check("CKAN", "interfaz JavaScript en español", i18n_js)
+
     def api_and_schema(self):
         def org():
             o = self.api("organization_create", "POST", name=self.org, title="Organización de aceptación")

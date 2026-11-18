@@ -260,6 +260,38 @@ def download(session: requests.Session, url: str, target: Path, retries: int = 3
     raise RuntimeError(f"descarga fallida tras {retries} intentos: {last}")
 
 
+# ============================================================ acerca de ===
+_ABOUT_RE = re.compile(r'<article class="module"[^>]*>\s*<div class="module-content">(.*?)</div>\s*</article>', re.S)
+
+
+def extract_about(page_html: str) -> str | None:
+    """Contenido de la página "Acerca de" (``ckan.site_about``) de un CKAN.
+
+    No está en la API pública, así que se toma de la página ``/about``.
+    Devuelve Markdown con HTML: cada línea de texto como párrafo propio y cada
+    lista (<ul>/<ol>) como un bloque, para que se vea igual que en origen."""
+    m = _ABOUT_RE.search(page_html)
+    if not m:
+        return None
+    lines = [l.strip() for l in m.group(1).strip().splitlines() if l.strip()]
+    blocks: list[str] = []
+    current_list: list[str] | None = None
+    for line in lines:
+        if current_list is not None:
+            current_list.append(line)
+            if re.match(r"</(ul|ol)>", line):
+                blocks.append("\n".join(current_list))
+                current_list = None
+            continue
+        if re.match(r"<(ul|ol)\b", line) and not re.search(r"</(ul|ol)>", line):
+            current_list = [line]
+            continue
+        blocks.append(line)
+    if current_list:
+        blocks.append("\n".join(current_list))
+    return "\n\n".join(blocks) or None
+
+
 # =============================================================== selección ===
 PAGE = 100
 
@@ -344,6 +376,20 @@ def cmd_export(cfg: dict, src=None, session: requests.Session | None = None) -> 
         except Exception as e:  # el portal de origen puede no tener ckanext-pages
             rep.warning(f"no se pudieron leer las páginas: {e}")
 
+    if cfg.get("site_about", True):
+        try:
+            r = session.get(cfg["source"].rstrip("/") + "/about", timeout=60)
+            r.raise_for_status()
+            about = extract_about(r.text)
+        except requests.RequestException as e:
+            about = None
+            rep.warning(f"no se pudo leer la página 'Acerca de' del origen: {e}")
+        if about:
+            (dump / "site.json").write_text(json.dumps({"about": about}, ensure_ascii=False, indent=1))
+            rep.stats["acerca_de_caracteres"] = len(about)
+        else:
+            rep.warning("el origen no tiene texto 'Acerca de' reconocible: se mantiene el del portal nuevo")
+
     for ds in datasets:
         rep.count("datasets")
         for res in ds["resources"]:
@@ -427,6 +473,12 @@ def transform_dataset(ds: dict, cfg: dict) -> dict:
     }
     for key in ("url", "version", "author", "author_email", "maintainer", "maintainer_email"):
         out[key] = ds.get(key) or ""
+    # Fechas originales (CKAN no permite fijar metadata_created/modified):
+    # se conservan en los campos DCAT issued/modified del esquema.
+    if ds.get("metadata_created"):
+        out["issued"] = ds["metadata_created"]
+    if ds.get("metadata_modified"):
+        out["modified"] = ds["metadata_modified"]
     contact = {k: v for k, v in (("name", ds.get("maintainer")), ("email", ds.get("maintainer_email"))) if v}
     if contact:
         out["contact"] = [contact]
@@ -437,7 +489,12 @@ RESOURCE_FIELDS = ("id", "name", "description", "format", "mimetype")
 
 
 def resource_fields(res: dict) -> dict:
-    return {k: res[k] for k in RESOURCE_FIELDS if res.get(k)}
+    out = {k: res[k] for k in RESOURCE_FIELDS if res.get(k)}
+    if res.get("created"):
+        out["issued"] = res["created"]
+    if res.get("last_modified") or res.get("metadata_modified"):
+        out["modified"] = res.get("last_modified") or res["metadata_modified"]
+    return out
 
 
 # ================================================================ import ===
@@ -527,6 +584,11 @@ def cmd_import(cfg: dict, dst=None) -> Report:
             rep.error(f"{type(e).__name__}: {e}", dataset=ds["name"])
             rep.count("datasets_error")
 
+    site = json.loads((dump / "site.json").read_text()) if (dump / "site.json").exists() else {}
+    if site.get("about"):
+        dst.action.config_option_update(**{"ckan.site_about": site["about"]})
+        rep.count("acerca_de")
+
     for p in jsonl_read(dump / "pages.jsonl"):
         dst.action.ckanext_pages_update(
             page=p["name"], name=p["name"], title=p["title"], content=p.get("content", ""),
@@ -537,6 +599,14 @@ def cmd_import(cfg: dict, dst=None) -> Report:
 
 
 # ================================================================ verify ===
+def same_date(a, b) -> bool:
+    """Mismo instante, aunque CKAN normalice el formato (segundos, zona, T/espacio)."""
+    if not a or not b:
+        return False
+    norm = lambda v: str(v).replace(" ", "T").rstrip("Z").split("+")[0]
+    return norm(a)[:19] == norm(b)[:19]
+
+
 def compare_dataset(src: dict, new: dict, cfg: dict) -> list[tuple[str, str, str]]:
     """Compara metadatos y recursos. Devuelve [(nivel, recurso, mensaje)]."""
     out: list[tuple[str, str, str]] = []
@@ -552,6 +622,9 @@ def compare_dataset(src: dict, new: dict, cfg: dict) -> list[tuple[str, str, str
         out.append((ERROR, "", "grupos distintos"))
     if not new.get("theme"):
         out.append((ERROR, "", "sin temática NTI (obligatoria para datos.gob.es)"))
+    for key in ("issued", "modified"):
+        if expected.get(key) and not same_date(expected[key], new.get(key)):
+            out.append((ERROR, "", f"{key}: fecha original {expected[key]!r}, encontrada {new.get(key)!r}"))
 
     new_res = {r["id"]: r for r in new.get("resources", [])}
     src_ids = {r["id"] for r in src["resources"]}
@@ -572,6 +645,9 @@ def compare_dataset(src: dict, new: dict, cfg: dict) -> list[tuple[str, str, str
             out.append((ERROR, rname, "URL externa distinta"))
         if res.get("url_type") == "upload" and got.get("url_type") != "upload":
             out.append((ERROR, rname, "en origen era un fichero subido y en destino no"))
+        for key, value in resource_fields(res).items():
+            if key in ("issued", "modified") and not same_date(value, got.get(key)):
+                out.append((ERROR, rname, f"{key}: fecha original {value!r}, encontrada {got.get(key)!r}"))
     return out
 
 
@@ -647,6 +723,14 @@ def cmd_verify(cfg: dict, dst=None, session: requests.Session | None = None) -> 
                           dataset=ds["name"], resource=rname)
             else:
                 rep.count("ficheros_identicos")
+
+    site = json.loads((cfg["_dump"] / "site.json").read_text()) if (cfg["_dump"] / "site.json").exists() else {}
+    if site.get("about"):
+        got = dst.action.config_option_show(key="ckan.site_about")
+        if (got or "").strip() != site["about"].strip():
+            rep.error("el texto 'Acerca de' del portal nuevo no coincide con el del origen")
+        else:
+            rep.count("acerca_de_identico")
 
     # Datasets en la organización destino que no vienen del origen
     org = cfg["organization"]["name"]

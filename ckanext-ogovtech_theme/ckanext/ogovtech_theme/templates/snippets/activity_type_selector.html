@@ -1,0 +1,28 @@
+{#
+  Selector de tipo de actividad (ckanext-activity) con etiquetas en español:
+  el original muestra el identificador interno en inglés ("New Resource View").
+#}
+{% set labels = {
+  'new package': _('Nuevo conjunto de datos'), 'changed package': _('Conjunto de datos modificado'),
+  'deleted package': _('Conjunto de datos eliminado'), 'follow dataset': _('Seguimiento de conjunto de datos'),
+  'new resource view': _('Nueva vista de recurso'), 'changed resource view': _('Vista de recurso modificada'),
+  'deleted resource view': _('Vista de recurso eliminada'),
+  'new group': _('Nuevo grupo'), 'changed group': _('Grupo modificado'), 'deleted group': _('Grupo eliminado'),
+  'follow group': _('Seguimiento de grupo'),
+  'new organization': _('Nueva organización'), 'changed organization': _('Organización modificada'),
+  'deleted organization': _('Organización eliminada'),
+  'new user': _('Nuevo usuario'), 'changed user': _('Usuario modificado'), 'follow user': _('Seguimiento de usuario'),
+} %}
+<div id="activity_types_filter" style="margin-bottom: 15px;">
+  <label for="activity_types_filter_select" class="form-label">{{ _('Tipo de actividad') }}</label>
+  <select id="activity_types_filter_select" class="form-select">
+    <option {% if not activity_types %}selected{% endif %} hx-get="{{ h.url_for(blueprint, id=id) }}" hx-target="closest .module-content" hx-push-url="true">
+      {{ _('Todos los tipos de actividad') }}
+    </option>
+    {% for type_ in activity_types %}
+      <option {% if activity_type == type_ %}selected{% endif %} hx-get="{{ h.url_for(blueprint, id=id, activity_type=type_) }}" hx-target="closest .module-content" hx-push-url="true">
+        {{ labels.get(type_, type_ | capitalize) }}
+      </option>
+    {% endfor %}
+  </select>
+</div>

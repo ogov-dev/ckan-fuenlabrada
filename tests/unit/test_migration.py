@@ -19,6 +19,10 @@ class FakeResponse:
     def __init__(self, body: bytes = b"", status: int = 200, headers: dict | None = None):
         self.body, self.status_code, self.headers = body, status, headers or {}
 
+    @property
+    def text(self):
+        return self.body.decode()
+
     def __enter__(self):
         return self
 
@@ -85,6 +89,7 @@ def cfg(tmp_path):
                            "hacienda": "hacienda"},
         "theme_default": "sector-publico",
         "language_default": "SPA",
+        "site_about": False,          # la página "Acerca de" tiene sus propios tests
     }
 
 
@@ -474,3 +479,75 @@ def test_main_codigo_salida(cfg, tmp_path, monkeypatch):
     assert m.main(["import", str(p)]) == 1                      # sin volcado -> error
     assert m.main(["import", str(p), "--allow-errors"]) == 0
     assert list((tmp_path / "data" / "migration" / "reports" / "prueba").glob("import-*.md"))
+
+
+# ------------------------------------------- fechas y página "Acerca de" ---
+def test_transform_conserva_fechas_originales(cfg):
+    ds = dataset(metadata_created="2022-02-07T10:11:12.123456", metadata_modified="2022-06-28T08:00:00")
+    out = m.transform_dataset(ds, cfg)
+    assert out["issued"] == "2022-02-07T10:11:12.123456"
+    assert out["modified"] == "2022-06-28T08:00:00"
+
+
+def test_transform_sin_fechas_no_inventa(cfg):
+    out = m.transform_dataset(dataset(), cfg)
+    assert "issued" not in out and "modified" not in out
+
+
+@pytest.mark.parametrize("res,esperado", [
+    ({"id": "r", "created": "2021-01-01T00:00:00", "last_modified": "2021-02-01T00:00:00",
+      "metadata_modified": "2021-03-01T00:00:00"},
+     {"id": "r", "issued": "2021-01-01T00:00:00", "modified": "2021-02-01T00:00:00"}),
+    ({"id": "r", "metadata_modified": "2021-03-01T00:00:00"}, {"id": "r", "modified": "2021-03-01T00:00:00"}),
+    ({"id": "r", "name": "", "format": "CSV"}, {"id": "r", "format": "CSV"}),
+])
+def test_resource_fields_fechas(res, esperado):
+    assert m.resource_fields(res) == esperado
+
+
+@pytest.mark.parametrize("a,b,igual", [
+    ("2022-02-07T10:11:12.123456", "2022-02-07 10:11:12", True),
+    ("2022-02-07T10:11:12Z", "2022-02-07T10:11:12+00:00", True),
+    ("2022-02-07T10:11:12", "2022-02-07T10:11:13", False),
+    ("", "2022-02-07", False),
+    (None, None, False),
+])
+def test_same_date(a, b, igual):
+    assert m.same_date(a, b) is igual
+
+
+def test_extract_about_parrafos_y_listas():
+    html = ('<html><article class="module"><div class="module-content">\n'
+            '  <p>Primera línea</p>\n  Segunda línea\n'
+            '  <ul>\n<li>uno</li>\n<li>dos</li>\n</ul>\n  Final\n'
+            '</div></article></html>')
+    assert m.extract_about(html) == ("<p>Primera línea</p>\n\nSegunda línea\n\n"
+                                     "<ul>\n<li>uno</li>\n<li>dos</li>\n</ul>\n\nFinal")
+
+
+def test_extract_about_lista_en_una_linea_y_sin_contenido():
+    html = '<article class="module"><div class="module-content"><ol><li>a</li></ol></div></article>'
+    assert m.extract_about(html) == "<ol><li>a</li></ol>"
+    assert m.extract_about('<article class="module"><div class="module-content">  </div></article>') is None
+    assert m.extract_about("<html>sin bloque</html>") is None
+
+
+def test_export_guarda_acerca_de(cfg):
+    cfg["site_about"] = True
+    src, _ = _paged_source([{"count": 1, "results": [_ds(1)]}], declared=1)
+    src.handlers.update({"organization_list": ["vieja"], "group_list": []})
+    about = '<article class="module"><div class="module-content">Texto del portal</div></article>'
+    rep = m.cmd_export(cfg, src=src, session=FakeSession(
+        {"https://origen.example/about": FakeResponse(about.encode())}))
+    assert json.loads((cfg["_dump"] / "site.json").read_text()) == {"about": "Texto del portal"}
+    assert rep.stats["acerca_de_caracteres"] == len("Texto del portal")
+
+
+def test_export_sin_acerca_de_avisa_y_sigue(cfg):
+    cfg["site_about"] = True
+    src, _ = _paged_source([{"count": 1, "results": [_ds(1)]}], declared=1)
+    src.handlers.update({"organization_list": ["vieja"], "group_list": []})
+    rep = m.cmd_export(cfg, src=src, session=FakeSession(
+        {"https://origen.example/about": FakeResponse(status=500)}))
+    assert rep.ok and not (cfg["_dump"] / "site.json").exists()
+    assert any("Acerca de" in w.message for w in rep.warnings)

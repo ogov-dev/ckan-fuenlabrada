@@ -188,3 +188,95 @@ def test_titulo_de_recurso_sin_etiqueta_xloader_para_el_publico(app):
     body = app.get(f"/dataset/{ds['name']}").body
     assert "Datos 2026" in body and 'data-format="csv"' in body
     assert "loader-badge" not in body
+
+
+# ------------------------------------------------- favicon y fichas públicas ---
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.favicon", "https://example.org/favicon-municipio.png")
+@pytest.mark.usefixtures("with_plugins")
+def test_favicon_configurado(app):
+    assert theme.ogovtech_theme_favicon() == "https://example.org/favicon-municipio.png"
+    assert '<link rel="icon" href="https://example.org/favicon-municipio.png"' in app.get("/").body
+
+
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.favicon", "")
+@pytest.mark.ckan_config("ckan.site_logo", "https://example.org/escudo.png")
+@pytest.mark.usefixtures("with_plugins")
+def test_favicon_por_defecto_es_el_logotipo_del_sitio():
+    assert theme.ogovtech_theme_favicon() == "https://example.org/escudo.png"
+
+
+@pytest.mark.ckan_config("ckanext.ogovtech_theme.favicon", "")
+@pytest.mark.ckan_config("ckan.site_logo", "")
+@pytest.mark.usefixtures("with_plugins")
+def test_sin_favicon_no_se_pinta_enlace(app):
+    assert theme.ogovtech_theme_favicon() == ""
+    assert 'rel="icon"' not in app.get("/").body
+
+
+def _dataset_con_recurso(**res):
+    org = factories.Organization()
+    return factories.Dataset(owner_org=org["id"], license_id="odc-by",
+                             theme=["http://datos.gob.es/kos/sector-publico/sector/economia"],
+                             language=["http://publications.europa.eu/resource/authority/language/SPA"],
+                             resources=[res])
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_recurso_externo_sin_vista_ofrece_abrirlo(app):
+    ds = _dataset_con_recurso(url="https://transparencia.example.org/visor/5", format="HTML", name="Visor")
+    res_id = ds["resources"][0]["id"]
+    assert not helpers.call_action("resource_view_list", id=res_id)
+    body = app.get(f"/dataset/{ds['name']}/resource/{res_id}").body
+    assert "ogov-no-preview" in body and "Abrir en una ventana nueva" in body
+    assert 'href="https://transparencia.example.org/visor/5" target="_blank" rel="noopener"' in body
+    assert "no existen vistas" not in body.lower() and "no views" not in body.lower()
+
+
+# ------------------------------------------- grupos, organizaciones, actividad ---
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+@pytest.mark.parametrize("tipo", ["group", "organization"])
+def test_pestana_miembros_solo_para_quien_puede_gestionarlos(app, tipo):
+    sysadmin = factories.SysadminWithToken()
+    grupo = (factories.Group if tipo == "group" else factories.Organization)(user=sysadmin)
+    publico = app.get(f"/{tipo}/{grupo['name']}").body
+    assert f"/{tipo}/members/{grupo['name']}" not in publico
+    assert f"/{tipo}/about/{grupo['name']}" in publico
+    admin = app.get(f"/{tipo}/{grupo['name']}", headers={"Authorization": sysadmin["token"]}).body
+    assert f"/{tipo}/members/{grupo['name']}" in admin
+
+
+@pytest.mark.ckan_config("ckan.plugins", "ogovtech_theme ogovtech_fixes activity dcat scheming_datasets")
+@pytest.mark.ckan_config("ckan.auth.public_user_details", "false")     # como en el portal
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_actividad_publica_en_espanol_y_sin_enlaces_rotos(app, migrate_db_for):
+    migrate_db_for("activity")
+    autor = factories.UserWithToken(name="editora-municipal", fullname="Editora Municipal")
+    org = factories.Organization(users=[{"name": autor["name"], "capacity": "editor"}])
+    grupo = factories.Group(name="hacienda", users=[{"name": autor["name"], "capacity": "member"}])
+    helpers.call_action("package_create", {"user": autor["name"]}, name="presupuesto", title="Presupuesto",
+                        notes="n", owner_org=org["id"], license_id="odc-by", groups=[{"name": "hacienda"}],
+                        theme=["http://datos.gob.es/kos/sector-publico/sector/hacienda"],
+                        language=["http://publications.europa.eu/resource/authority/language/SPA"])
+    assert f"/group/activity/{grupo['name']}" in app.get(f"/group/{grupo['name']}").body   # pestaña
+    body = app.get(f"/group/activity/{grupo['name']}").body
+    assert "Editora Municipal" in body                       # se ve quién lo hizo…
+    assert 'href="/user/editora-municipal"' not in body      # …sin enlazar a un perfil privado (403)
+    assert "Todos los tipos de actividad" in body and "Nueva vista de recurso" in body
+    assert "New Resource View" not in body and 'href="None"' not in body
+    admin = factories.SysadminWithToken()
+    body = app.get(f"/group/activity/{grupo['name']}", headers={"Authorization": admin["token"]}).body
+    assert 'href="/user/editora-municipal"' in body          # quien puede ver perfiles sí tiene enlace
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_recuento_de_miembros_en_espanol(app):
+    factories.Group(name="deportes", users=[{"name": factories.User()["name"], "capacity": "member"}])
+    body = app.get("/group/").body
+    assert "miembro" in body and "Member" not in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_recuento_de_miembros_de_organizacion_en_espanol(app):
+    factories.Organization(name="ayuntamiento", users=[{"name": factories.User()["name"], "capacity": "editor"}])
+    body = app.get("/organization/").body
+    assert "miembro" in body and "Member" not in body

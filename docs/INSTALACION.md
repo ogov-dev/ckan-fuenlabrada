@@ -117,7 +117,7 @@ Una segunda ejecución no cambia nada (`changed=0`).
 # token de sysadmin para las pruebas
 ssh servidor 'docker exec <instancia>-ckan-1 ckan -c /srv/app/ckan.ini user token add ckan_admin aceptacion'
 
-# aceptación (19 comprobaciones; crea y borra sus propios datos)
+# aceptación (20 comprobaciones; crea y borra sus propios datos)
 docker run --rm -v "$PWD/tests/acceptance:/acc" -w /acc --entrypoint python3 ogov/ckan:test \
     acceptance.py --url https://<portal> --token <token> --report-dir /acc/reports
 
@@ -126,7 +126,7 @@ docker run --rm -v "$PWD/tests/federation:/v" -w /v python:3.12-slim \
     sh -c 'pip install -q -r requirements.txt && python validate_dcat_ap_es.py --url https://<portal>'
 ```
 
-Resultado esperado: 19/19 y **0 violaciones** (los avisos son propiedades
+Resultado esperado: 20/20 y **0 violaciones** (los avisos son propiedades
 recomendadas que dependen de la calidad de los metadatos).
 
 ## 6. Puesta en marcha

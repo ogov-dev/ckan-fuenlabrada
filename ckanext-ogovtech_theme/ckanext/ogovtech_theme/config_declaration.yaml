@@ -22,6 +22,10 @@ groups:
         default: ""
         description: URL de la imagen de fondo de la portada (opcional).
         editable: true
+      - key: ckanext.ogovtech_theme.favicon
+        default: ""
+        description: URL del favicon del ayuntamiento (si se deja vacío se usa el logotipo del portal).
+        editable: true
       - key: ckanext.ogovtech_theme.footer_legal_links
         default: ""
         description: Enlaces legales de la barra inferior (Accesibilidad, Protección de datos…), formato Texto|URL.

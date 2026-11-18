@@ -1,0 +1,25 @@
+{% ckan_extends %}
+
+{# Sin vistas: mensaje útil para el público (enlace externo o descarga) en
+   lugar de "No existen vistas para este recurso". Los editores ven además el
+   diagnóstico de CKAN. #}
+{% block resource_view_content %}
+  {% if resource_views %}
+    {{ super() }}
+  {% else %}
+    {% set is_link = resource.url_type != 'upload' %}
+    <div class="ogov-no-preview">
+      <span class="ogov-no-preview__icon" aria-hidden="true"><i class="fa {{ 'fa-up-right-from-square' if is_link else 'fa-file-arrow-down' }}"></i></span>
+      {% if is_link %}
+        <p>{{ _('Este recurso es una página externa y no se puede mostrar dentro del portal.') }}</p>
+        <a class="btn btn-primary" href="{{ resource.url }}" target="_blank" rel="noopener">{{ _('Abrir en una ventana nueva') }}</a>
+      {% else %}
+        <p>{{ _('Este fichero no tiene vista previa en el portal.') }}</p>
+        <a class="btn btn-primary" href="{{ resource.url }}">{{ _('Descargar') }}{% if resource.format %} ({{ resource.format }}){% endif %}</a>
+      {% endif %}
+    </div>
+    {% if h.check_access('resource_view_create', {'resource_id': resource.id}) %}
+      {{ super() }}
+    {% endif %}
+  {% endif %}
+{% endblock %}
