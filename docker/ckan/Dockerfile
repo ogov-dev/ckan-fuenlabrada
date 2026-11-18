@@ -14,6 +14,8 @@ USER root
 # --- Extensiones de comunidad (conjunto cerrado) ---------------------------
 # Las que no están en PyPI se descargan de GitHub (revisión fija) y se instalan
 # en modo editable: su paquete no incluye todos los ficheros de datos.
+# ezodf: XLoader (tabulator) lo necesita para leer hojas ODS y no lo declara;
+# sin él, todo recurso .ods falla con "No module named 'ezodf'".
 RUN for ext in "ckanext-scheming refs/tags/${SCHEMING_REF}" "ckanext-pages ${PAGES_REF}"; do \
         set -- $ext; mkdir -p ${SRC_DIR}/$1; \
         curl -fsSL "https://github.com/ckan/$1/archive/$2.tar.gz" | tar xz --strip-components=1 -C ${SRC_DIR}/$1; \
@@ -21,7 +23,8 @@ RUN for ext in "ckanext-scheming refs/tags/${SCHEMING_REF}" "ckanext-pages ${PAG
     done \
  && pip install --no-cache-dir \
         "ckanext-dcat==${DCAT_VERSION}" \
-        "ckanext-xloader==${XLOADER_VERSION}"
+        "ckanext-xloader==${XLOADER_VERSION}" \
+        "ezodf==0.3.2"
 
 # --- Extensiones propias oGov.tech -------------------------------------------
 COPY ckanext-ogovtech_theme ${SRC_DIR}/ckanext-ogovtech_theme

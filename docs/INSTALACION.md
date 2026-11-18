@@ -19,7 +19,7 @@ en el servidor no se instala nada a mano.
 | Software | Docker Engine ≥ 24 con el plugin **Docker Compose v2**, `python3` |
 | Acceso | SSH con clave para un usuario con `sudo` |
 | Red | Salida hacia el registro de imágenes; entrada al puerto HTTP de la instancia desde el proxy/balanceador |
-| HTTPS | Lo termina el proxy o balanceador de la infraestructura, que reenvía a `http://servidor:<ckan_http_port>` |
+| HTTPS | Lo termina el proxy o balanceador de la infraestructura, que reenvía a `http://servidor:<ckan_http_port>`. Si `ckan_site_url` es `https://`, las cookies de sesión se marcan `Secure`: el portal solo admite inicio de sesión por HTTPS |
 | Registro | Si es privado: `docker login <registro>` hecho en el servidor |
 
 El rol **comprueba** que Docker y Compose existen; no los instala.

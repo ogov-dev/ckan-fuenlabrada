@@ -2,3 +2,9 @@ main-css:
   output: ogovtech_theme/%(version)s_ogovtech_theme.css
   contents:
     - css/ogovtech_theme.css
+
+main-js:
+  output: ogovtech_theme/%(version)s_ogovtech_theme.js
+  filters: rjsmin
+  contents:
+    - js/ogovtech_theme.js

@@ -44,6 +44,19 @@ versiones de extensiones (`SCHEMING_REF`, `DCAT_VERSION`, `XLOADER_VERSION`,
 plantillas) y pasar la batería completa. Actualizar la tabla de versiones del
 README.
 
+Además, revisar lo que la baseline adapta de CKAN y sus extensiones:
+
+| Qué | Dónde | Qué comprobar |
+|---|---|---|
+| Plantillas copiadas del core (no se pueden extender por bloques) | `ckanext-ogovtech_theme/.../templates/package/snippets/resource_view.html`, `macros/form/markdown.html` | Comparar con la versión nueva del core y reaplicar los cambios (indicados en su cabecera) |
+| Traducciones propias | `ckanext-ogovtech_theme/.../i18n/es/` | Textos nuevos sin traducir: lista de `msgstr ""` del `ckan.po` usada en plantillas; el test `test_catalogo_de_traducciones_completo_y_coherente` vigila el catálogo |
+| Usuario vacío de XLoader | `ckanext-ogovtech_fixes/.../internal_user.py` | Si la versión nueva de ckanext-xloader ya usa un usuario en `loader.py`, se puede retirar |
+| Bloques repetibles vacíos | `ckanext-ogovtech_fixes/.../composites.py` | Si ckanext-scheming ya los descarta, se puede retirar |
+| Dependencia `ezodf` (hojas ODS) | `docker/ckan/Dockerfile` | Si ckanext-xloader la declara, se puede quitar |
+
+Pasar también el rastreo completo como público, editor y administrador
+(`tests/acceptance/crawl.py`, apartado "Pruebas" del README): 0 errores.
+
 ## 2. Probar en preproducción con una copia de producción
 
 1. **Copia de seguridad de producción** (solo lectura sobre producción). Se

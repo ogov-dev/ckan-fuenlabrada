@@ -60,3 +60,46 @@ def test_porcentaje_siempre_es_error(entorno):
 def test_desarrollo_solo_avisa():
     r = run(**{**GOOD, "CKAN_SYSADMIN_PASSWORD": "cambia", "OGOV_ENV": "development"})
     assert r.returncode == 0 and "AVISO (development)" in r.stderr
+
+
+# ------------------------------------------------- cookies (06_cookies.sh) ---
+COOKIES = next((p for p in [Path(__file__).resolve().parents[2] / "docker" / "ckan" / "docker-entrypoint.d" / "06_cookies.sh",
+                            Path("/docker-entrypoint.d/06_cookies.sh")] if p.exists()), None)
+INI = "[app:main]\nSESSION_COOKIE_NAME = ckan\nSESSION_COOKIE_DOMAIN = \nSESSION_COOKIE_SECURE = false\n"
+
+
+def run_cookies(tmp_path, site_url):
+    """Ejecuta el script con un `ckan` falso que registra los argumentos."""
+    if COOKIES is None:
+        pytest.skip("06_cookies.sh no disponible")
+    app_dir = tmp_path / "app"                 # hace de /srv/app
+    app_dir.mkdir()
+    ini = app_dir / "ckan.ini"
+    ini.write_text(INI)
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "ckan").write_text('#!/bin/sh\necho "$@" >> "$OGOV_LOG"\n')
+    (fake / "ckan").chmod(0o755)
+    log = tmp_path / "args.log"
+    env = {"PATH": f"{fake}:{os.environ['PATH']}", "CKAN_INI": str(ini), "OGOV_LOG": str(log),
+           "CKAN_SITE_URL": site_url}
+    app_dir.chmod(0o555)           # como /srv/app: se puede escribir ckan.ini, no crear ficheros
+    try:
+        r = subprocess.run(["bash", "-c", f'source "{COOKIES}"'], env=env, capture_output=True, text=True)
+    finally:
+        app_dir.chmod(0o755)
+    assert r.returncode == 0 and not r.stderr, r.stderr
+    return ini.read_text(), log.read_text(), r.stdout
+
+
+def test_cookies_seguras_con_https(tmp_path):
+    ini, args, out = run_cookies(tmp_path, "https://datos.example.org")
+    assert "SESSION_COOKIE_SECURE=true" in args and "REMEMBER_COOKIE_SECURE=true" in args
+    assert "REMEMBER_COOKIE_SAMESITE=Lax" in args and "SESSION_COOKIE_SAMESITE=Lax" in args
+    assert "SESSION_COOKIE_DOMAIN" not in ini and "SESSION_COOKIE_NAME = ckan" in ini
+    assert "Secure=true" in out
+
+
+def test_cookies_sin_secure_en_http_local(tmp_path):
+    _, args, out = run_cookies(tmp_path, "http://localhost:8090")
+    assert "SESSION_COOKIE_SECURE=false" in args and "Secure=false" in out

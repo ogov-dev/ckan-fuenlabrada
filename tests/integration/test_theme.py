@@ -280,3 +280,92 @@ def test_recuento_de_miembros_de_organizacion_en_espanol(app):
     factories.Organization(name="ayuntamiento", users=[{"name": factories.User()["name"], "capacity": "editor"}])
     body = app.get("/organization/").body
     assert "miembro" in body and "Member" not in body
+
+
+# -------------------------------------- campos vacíos y formato de recursos ---
+@pytest.mark.parametrize("valor,tiene", [
+    (None, False), ("", False), ("  ", False), ([], False), ({}, False),
+    ([{"name": "", "email": None}], False), ([{"name": "Ana"}], True),
+    ("x", True), (0, True), (False, True), ({"a": [" ", {"b": "y"}]}, True),
+])
+def test_has_value(valor, tiene):
+    assert theme.ogovtech_has_value(valor) is tiene
+
+
+def test_non_empty():
+    assert theme.ogovtech_non_empty([{"a": ""}, {"a": "x"}, None]) == [{"a": "x"}]
+    assert theme.ogovtech_non_empty("no es lista") == []
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_ficha_sin_filas_vacias_y_con_formato(app):
+    ds = _dataset_con_recurso(url="https://e.org/a.shp", format="SHP", name="Elementos")
+    sysadmin = factories.Sysadmin()
+    helpers.call_action("package_patch", {"user": sysadmin["name"]}, id=ds["id"],
+                        contact=[{"name": "Ayuntamiento de Prueba", "email": "", "url": ""}])
+    body = app.get(f"/dataset/{ds['name']}").body
+    assert "Frecuencia de actualización" not in body and "Cobertura geográfica" not in body
+    assert "Punto de contacto" in body and "Ayuntamiento de Prueba" in body
+    assert "Contacto 1" not in body and "Correo electrónico" not in body     # sin cabecera ni subcampos vacíos
+    assert 'class="ogov-res-format" aria-hidden="true">SHP<' in body
+
+
+# ------------------------------------------------------- traducciones propias ---
+@pytest.mark.usefixtures("with_plugins")
+def test_traducciones_propias_completan_y_corrigen_las_de_ckan(app):
+    from flask_babel import gettext
+    with app.flask_app.test_request_context():
+        assert gettext("Publish") == "Publicar"                              # faltaba
+        assert gettext("Navigate to dataset: {title}") == "Ir al conjunto de datos: {title}"
+        assert gettext("Upload a file on your computer") == "Subir un fichero desde su equipo"   # corregida
+        assert gettext("active") == "activo"
+
+
+def test_catalogo_de_traducciones_completo_y_coherente():
+    from pathlib import Path
+    from babel.messages.pofile import read_po
+    import re
+    po = Path(theme.__file__).parent / "i18n" / "es" / "LC_MESSAGES" / "ckanext-ogovtech_theme.po"
+    cat = read_po(po.open("rb"))
+    assert not cat.fuzzy and len(cat) > 150
+    marcas = lambda s: sorted(re.findall(r"%\(\w+\)s|\{\w+\}", s if isinstance(s, str) else " ".join(s)))
+    for m in cat:
+        if m.id:
+            assert m.string, f"sin traducir: {m.id!r}"
+            assert marcas(m.id) == marcas(m.string), f"marcadores distintos: {m.id!r}"
+            texto = m.string if isinstance(m.string, str) else " ".join(m.string)
+            assert not re.search(r"\b(podés|querés|tenés|hacé|Acá)\b", texto), f"voseo: {texto!r}"
+    assert po.with_suffix(".mo").stat().st_mtime >= po.stat().st_mtime - 5    # .mo regenerado
+
+
+# ------------------------------------------ ficha de recurso y accesibilidad ---
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_ficha_de_recurso_sin_campos_internos(app):
+    ds = _dataset_con_recurso(url="https://e.org/a.csv", format="CSV", name="Datos", size=2048, mimetype="text/csv")
+    body = app.get(f"/dataset/{ds['name']}/resource/{ds['resources'][0]['id']}").body
+    for interno in ("Package id", "Url type", "Position", "Has views", "State", "Datastore active"):
+        assert f">{interno}<" not in body, interno
+    assert "Tamaño" in body and "Tipo MIME" in body and "text/csv" in body
+
+
+@pytest.mark.usefixtures("with_plugins", "clean_db", "clean_index")
+def test_explorar_con_id_unico_por_recurso(app):
+    org = factories.Organization()
+    ds = factories.Dataset(owner_org=org["id"], license_id="odc-by",
+                           theme=["http://datos.gob.es/kos/sector-publico/sector/economia"],
+                           language=["http://publications.europa.eu/resource/authority/language/SPA"],
+                           resources=[{"url": "https://e.org/a.csv", "format": "CSV"},
+                                      {"url": "https://e.org/b.json", "format": "JSON"}])
+    body = app.get(f"/dataset/{ds['name']}").body
+    assert 'id="dropdownExplorer"' not in body
+    for r in ds["resources"]:
+        assert f'id="dropdownExplorer-{r["id"]}"' in body and f'aria-labelledby="dropdownExplorer-{r["id"]}"' in body
+
+
+@pytest.mark.usefixtures("with_plugins")
+def test_js_del_tema_y_ayuda_markdown_en_espanol(app):
+    assert "_ogovtech_theme.js" in app.get("/").body
+    sysadmin = factories.SysadminWithToken()
+    body = app.get("/dataset/new", headers={"Authorization": sysadmin["token"]}).body
+    assert "Sintaxis completa de Markdown" in body and "Full markdown syntax" not in body
+    assert "Puede usar" in body and "Podés" not in body

@@ -3,6 +3,12 @@
 y comprueba enlaces, recursos estáticos, vistas, descargas y textos.
 
     python3 crawl.py http://localhost:8090 [--max-pages 3000] [--workers 4]
+    CRAWL_PASSWORD=… python3 crawl.py http://localhost:8090 --login usuario [--forms]
+
+Con --login se navega con sesión iniciada (contraseña en CRAWL_PASSWORD) y con
+--forms se abren también los formularios de edición y alta (solo GET: nunca se
+envía un formulario ni se borra nada; el cierre de sesión y los borrados se
+excluyen siempre).
 
 Solo biblioteca estándar. Código de salida 1 si hay incidencias de nivel ERROR.
 """
@@ -11,6 +17,8 @@ from __future__ import annotations
 import argparse
 import collections
 import concurrent.futures as cf
+import http.cookiejar
+import os
 import re
 import sys
 import urllib.error
@@ -23,6 +31,9 @@ UA = "ogov-crawl/1.0"
 SKIP = re.compile(r"/(user/(login|logout|register|reset)|api/|dataset/new|organization/new|group/new|"
                   r"ckan-admin|dashboard|.*/(edit|delete|new_resource|follow|unfollow|followers|"
                   r"resource/new|views)/?)|/webassets/|/base/|/ogovtech_theme/|\.(rdf|ttl|jsonld|xml|n3)$")
+# Con --forms solo se excluyen las rutas que cambian estado o cierran la sesión.
+SKIP_FORMS = re.compile(r"/(user/(logout|_logout|reset)|api/|.*/(delete|follow|unfollow|purge|trash|reset_config|reset)/?)|"
+                        r"/webassets/|/base/|/ogovtech_theme/|\.(rdf|ttl|jsonld|xml|n3)$")
 # Rutas de descarga: se comprueban con HEAD, no se rastrean.
 DOWNLOAD = re.compile(r"/download/")
 ERROR_TEXTS = {
@@ -34,7 +45,12 @@ ERROR_TEXTS = {
 }
 # Textos en inglés que no deberían verse en un portal solo en español.
 ENGLISH = ["There is no description", " Member", " Followers", "Datasets", "Read more", "View ",
-           "Explore", "Download", "No description", "Last Updated", "Created", "Format"]
+           "Explore", "Download", "No description", "Last Updated", "Created", "Format",
+           "Navigate to", "Close", "Remove", "Delete", "Publish", "Search datasets", "Filter by",
+           "Open details", "Activity Stream", "Changes", "Members", "Edit", "Add", "Unpublish",
+           "active", "draft", "deleted", "Previous", "Next", "Loading", "Submit", "Cancel"]
+# Atributos que leen los lectores de pantalla o aparecen como ayuda emergente.
+TEXT_ATTRS = ("aria-label", "title", "placeholder", "alt")
 
 
 class Page(HTMLParser):
@@ -47,6 +63,9 @@ class Page(HTMLParser):
         a = dict(attrs)
         if tag in ("script", "style"):
             self._skip += 1
+        for name in TEXT_ATTRS:
+            if a.get(name) and a[name].strip() and tag not in ("script", "style", "link", "meta"):
+                self.text.append(a[name].strip())
         if tag == "a" and a.get("href"):
             self.links.append(a["href"])
         elif tag == "img" and a.get("src"):
@@ -67,10 +86,29 @@ class Page(HTMLParser):
             self.text.append(data.strip())
 
 
+OPENER = urllib.request.build_opener()
+
+
+def login(base: str, user: str, password: str) -> None:
+    """Inicia sesión con el formulario de CKAN; la cookie queda en OPENER."""
+    global OPENER
+    jar = http.cookiejar.CookieJar()
+    OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    _, _, body = fetch(base + "/user/login")
+    m = re.search(r'name="_csrf_token"\s+(?:value|content)="([^"]+)"', body)
+    data = urllib.parse.urlencode({"login": user, "password": password,
+                                   "_csrf_token": m.group(1) if m else ""}).encode()
+    req = urllib.request.Request(base + "/user/login", data=data, headers={"User-Agent": UA})
+    OPENER.open(req, timeout=60).read()
+    _, _, home = fetch(base + "/dashboard/datasets")
+    if "/user/_logout" not in home and "/user/logout" not in home:
+        raise SystemExit(f"no se pudo iniciar sesión como {user}")
+
+
 def fetch(url: str, method: str = "GET") -> tuple[int, str, str]:
     req = urllib.request.Request(url, method=method, headers={"User-Agent": UA})
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
+        with OPENER.open(req, timeout=60) as r:
             body = r.read().decode("utf-8", "replace") if method == "GET" else ""
             return r.status, r.headers.get("Content-Type", ""), body
     except urllib.error.HTTPError as e:
@@ -84,8 +122,13 @@ def main() -> int:
     ap.add_argument("base")
     ap.add_argument("--max-pages", type=int, default=3000)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--login", help="usuario con el que navegar (contraseña en CRAWL_PASSWORD)")
+    ap.add_argument("--forms", action="store_true", help="abrir también formularios de edición y alta")
     a = ap.parse_args()
     base = a.base.rstrip("/")
+    if a.login:
+        login(base, a.login, os.environ["CRAWL_PASSWORD"])
+    skip = SKIP_FORMS if a.forms else SKIP
     host = urllib.parse.urlsplit(base).netloc
 
     def internal(u: str, page_url: str) -> str | None:
@@ -102,6 +145,10 @@ def main() -> int:
     issues: list[tuple[str, str, str]] = []           # (nivel, url, detalle)
     seen, queue = set(), [base + "/", base + "/dataset/", base + "/group/", base + "/organization/",
                           base + "/pages", base + "/about"]
+    if a.login:
+        queue += [base + "/dashboard/datasets", base + "/user/" + a.login]
+    if a.forms:
+        queue += [base + "/dataset/new", base + "/ckan-admin/config", base + "/ckan-admin"]
     assets, downloads, iframes = {}, {}, {}
     statuses = collections.Counter()
     english = collections.Counter()
@@ -135,7 +182,7 @@ def main() -> int:
                         downloads.setdefault(full, url)
                         continue
                     u = internal(href, url)
-                    if u and u not in seen and not SKIP.search(urllib.parse.urlsplit(u).path):
+                    if u and u not in seen and not skip.search(urllib.parse.urlsplit(u).path):
                         queue.append(u)
                 for src in pg.assets:
                     full = urllib.parse.urljoin(url, src)

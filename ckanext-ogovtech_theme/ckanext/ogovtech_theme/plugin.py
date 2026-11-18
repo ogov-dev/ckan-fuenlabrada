@@ -19,6 +19,7 @@ from typing import Any
 from markupsafe import Markup
 
 import ckan.plugins as p
+from ckan.lib.plugins import DefaultTranslation
 import ckan.plugins.toolkit as tk
 
 from ckanext.ogovtech_theme.icons import ogovtech_group_icon
@@ -145,6 +146,28 @@ def ogovtech_theme_home() -> dict[str, Any]:
     return {"stats": stats, "datasets": datasets, "groups": groups, "formats": formats}
 
 
+
+def ogovtech_has_value(value: Any) -> bool:
+    """¿Tiene contenido un campo? Vacíos: None, "", espacios, [] y listas de
+    bloques repetibles (cobertura, contacto…) cuyos subcampos están todos vacíos."""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return any(ogovtech_has_value(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(ogovtech_has_value(v) for v in value)
+    return True
+
+
+def ogovtech_non_empty(values: Any) -> list:
+    """Elementos con contenido de una lista (ver ``ogovtech_has_value``)."""
+    if not isinstance(values, (list, tuple)):
+        return []
+    return [v for v in values if ogovtech_has_value(v)]
+
+
 @tk.chained_helper
 def linked_user(next_helper, user, maxlength: int = 0, avatar: int = 20):
     """Enlace al perfil del autor solo si quien navega puede verlo.
@@ -163,8 +186,10 @@ def linked_user(next_helper, user, maxlength: int = 0, avatar: int = 20):
 
 
 @tk.blanket.config_declarations
-class OgovtechThemePlugin(p.SingletonPlugin):
+class OgovtechThemePlugin(DefaultTranslation, p.SingletonPlugin):
     p.implements(p.IConfigurer)
+    # Traducciones propias (i18n/es): completan y corrigen el español de CKAN.
+    p.implements(p.ITranslation)
     p.implements(p.ITemplateHelpers)
     p.implements(p.IValidators)
 
@@ -198,6 +223,8 @@ class OgovtechThemePlugin(p.SingletonPlugin):
             "ogovtech_theme_favicon": ogovtech_theme_favicon,
             "ogovtech_group_icon": ogovtech_group_icon,
             "linked_user": linked_user,
+            "ogovtech_has_value": ogovtech_has_value,
+            "ogovtech_non_empty": ogovtech_non_empty,
         }
 
     # IValidators

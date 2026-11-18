@@ -117,6 +117,12 @@ ansible/test/remote/run.sh
 ansible/test/remote/backup_restore.sh <token> <huella.json>
 ansible/test/remote/run.sh --down
 
+# Rastreo completo del portal (enlaces, vistas, descargas, textos en inglés, también
+# los que leen los lectores de pantalla). Público y con sesión (abre también los
+# formularios, solo GET: no envía ni borra nada).
+python3 tests/acceptance/crawl.py http://<host>:<puerto>
+CRAWL_PASSWORD=… python3 tests/acceptance/crawl.py http://<host>:<puerto> --login <usuario> --forms
+
 # Federación: catálogo de una instancia contra las formas SHACL oficiales de DCAT-AP-ES
 docker run --rm -v "$PWD/tests/federation:/v" -w /v python:3.12-slim \
     sh -c 'pip install -q -r requirements.txt && python validate_dcat_ap_es.py --url http://<host>:<puerto>'
@@ -205,7 +211,16 @@ Comprobaciones aún no realizadas:
   fuera de la oferta base; evaluar compatibilidad con CKAN 2.12 antes de incluirlos.
 - Calidad de metadatos para datos.gob.es: el catálogo no tiene violaciones DCAT-AP-ES, pero sí
   avisos de propiedades recomendadas (contacto, cobertura temporal, descripción de recursos).
-- 39 de 87 hojas de cálculo de Fuenlabrada no se cargan en DataStore (no son tablas limpias:
-  títulos, celdas combinadas…). Se descargan bien; falta la vista previa en tabla.
+- 80 de 282 ficheros de Fuenlabrada no se cargan en DataStore porque no son tablas limpias
+  (títulos encima de la cabecera, columnas repetidas, cabeceras con saltos de línea…; 2 son
+  datos de origen: un recurso sin fichero y un XLSX declarado como XLS). Se descargan bien;
+  falta la vista previa en tabla. Arreglarlo exige corregir los ficheros en origen.
+- Limitaciones de CKAN 2.12 (ckanext-activity), solo visibles para editores/administradores:
+  en el historial, "Cambios" da 404 si la actividad anterior es de una vista de recurso, y
+  500 si el dataset se purgó (las actividades de datasets purgados no se borran).
+- Accesibilidad (mejora menor, no es un fallo WCAG): los listados de grupos y organizaciones
+  tienen dos `<h1>` (el del core y el contador de resultados) y el flujo de actividad ninguno.
+- Textos de la licencia de metadatos al crear datasets ("Licencia Open Database"): es el
+  texto genérico de CKAN; confirmar con el ayuntamiento qué licencia aplica a los metadatos.
 - Actualización a una versión de CKAN con migraciones de esquema (la actualización
   1.0.0 -> 1.1.0 con datos está probada, pero ambas usan CKAN 2.12.1).

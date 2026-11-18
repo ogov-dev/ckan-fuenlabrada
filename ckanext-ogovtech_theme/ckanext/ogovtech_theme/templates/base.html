@@ -5,6 +5,11 @@
   {% asset 'ogovtech_theme/main-css' %}
 {% endblock %}
 
+{% block scripts %}
+  {{ super() }}
+  {% asset 'ogovtech_theme/main-js' %}
+{% endblock %}
+
 {% block custom_styles %}
   {%- set c = h.ogovtech_theme_colors() -%}
   <style>

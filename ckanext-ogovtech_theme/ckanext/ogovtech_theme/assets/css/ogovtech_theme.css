@@ -386,3 +386,14 @@ header.masthead hgroup .logo img { max-height: 88px; height: 88px; width: auto; 
 @media (max-width: 767.98px) {
   .nav-simple .nav-item.active > a::before { display: none; }
 }
+
+/* Formato visible junto al nombre del recurso (ficha del conjunto de datos). */
+.resource-item .ogov-res-format {
+  display: inline-block; margin-left: .5rem; padding: .05rem .45rem;
+  border: 1px solid var(--ogov-primary, #003f80); border-radius: .25rem;
+  color: var(--ogov-primary, #003f80); font-size: .75rem; font-weight: 600;
+  line-height: 1.4; text-transform: uppercase; vertical-align: middle;
+}
+/* Bloques repetibles sin cabecera cuando solo hay uno. */
+.ogov-subfields .panel-body { padding-top: 0; }
+.ogov-subfields .scheming-subfield-list { margin-bottom: 0; }
