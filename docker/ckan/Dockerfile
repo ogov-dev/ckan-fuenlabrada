@@ -76,6 +76,27 @@ RUN ckan config-tool ${CKAN_INI} \
 
 COPY --chmod=0755 docker/ckan/ogov-start.sh /srv/app/ogov-start.sh
 RUN chown ckan:ckan-sys ${CKAN_INI}
+
+# --- Metadatos de la imagen publicada (los rellena scripts/release-image.sh) --
+ARG OGOV_VERSION=dev
+ARG VCS_REF=unknown
+ARG BUILD_DATE=unknown
+ARG SOURCE_URL=https://github.com/ogov-dev/ckan-fuenlabrada
+LABEL org.opencontainers.image.title="ogov-ckan" \
+      org.opencontainers.image.description="Baseline CKAN de oGov.tech para portales de datos abiertos municipales" \
+      org.opencontainers.image.version="${OGOV_VERSION}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="${SOURCE_URL}" \
+      org.opencontainers.image.vendor="oGov.tech" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.base.name="ckan/ckan-base:2.12.1"
+ENV OGOV_VERSION=${OGOV_VERSION}
+RUN printf '%s\n%s\n' "${OGOV_VERSION}" "${VCS_REF}" > /srv/app/OGOV_VERSION
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=5 \
+    CMD curl -fsS -o /dev/null http://localhost:5000/api/3/action/status_show || exit 1
+
 USER ckan
 CMD ["/srv/app/ogov-start.sh"]
 
