@@ -48,8 +48,14 @@ echo
 
 if [ -n "$PUSH_REPO" ]; then
   REMOTE="$PUSH_REPO:$VERSION"
-  if docker manifest inspect "$REMOTE" >/dev/null 2>&1; then
+  # Falla de forma segura: solo se publica si el registro CONFIRMA que la
+  # versión no existe; cualquier otro error (red, credenciales, TLS) detiene.
+  INSECURE=""
+  [[ "$PUSH_REPO" =~ ^(localhost|127\.0\.0\.1)(:[0-9]+)?/ ]] && INSECURE="--insecure"
+  if out=$(docker manifest inspect $INSECURE "$REMOTE" 2>&1); then
     echo "La versión $REMOTE ya existe en el registro: no se sobrescribe." >&2; exit 1
+  elif ! grep -qiE "no such manifest|manifest unknown|not found" <<<"$out"; then
+    echo "No se pudo comprobar si $REMOTE existe (no se publica): $out" >&2; exit 1
   fi
   docker tag "$LOCAL" "$REMOTE"
   docker push "$REMOTE" | tail -1
