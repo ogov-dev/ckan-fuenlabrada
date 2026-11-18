@@ -75,6 +75,7 @@ RUN ckan config-tool ${CKAN_INI} \
         "ckanext.pages.editor=ckeditor"
 
 COPY --chmod=0755 docker/ckan/ogov-start.sh /srv/app/ogov-start.sh
+COPY --chmod=0755 docker/ckan/ogov-sync-transparencia.sh /srv/app/ogov-sync-transparencia.sh
 RUN chown ckan:ckan-sys ${CKAN_INI}
 
 # --- Metadatos de la imagen publicada (los rellena scripts/release-image.sh) --

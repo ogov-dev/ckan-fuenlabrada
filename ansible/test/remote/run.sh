@@ -5,7 +5,7 @@
 #   ansible/test/remote/run.sh --down    # elimina servidor y datos de prueba
 #
 # Requisitos: registro en localhost:5050 con ogov/ckan:$FROM_VERSION y :$TO_VERSION
-# (por defecto 1.0.0 y 1.2.0)
+# (por defecto 1.0.0 y 1.3.0). Deja el servidor en marcha para sync_test.sh.
 # (scripts/release-image.sh ... --push localhost:5050/ogov/ckan).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -15,9 +15,10 @@ PORT_SSH=2222
 PORT_HTTP=8093
 REGISTRY=host.docker.internal:5050
 FROM_VERSION=${FROM_VERSION:-1.0.0}
-TO_VERSION=${TO_VERSION:-1.2.0}
+TO_VERSION=${TO_VERSION:-1.3.0}
 WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
+KEEP=${KEEP_WORK:-/tmp/ogov-remote-work}
+trap 'rm -rf "$KEEP" && cp -R "$WORK" "$KEEP" && rm -rf "$WORK"' EXIT
 
 if [ "${1:-}" = "--down" ]; then docker rm -f -v "$SERVER" >/dev/null 2>&1 || true; exit 0; fi
 

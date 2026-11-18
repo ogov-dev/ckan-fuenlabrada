@@ -10,8 +10,9 @@ datos en CKAN, con:
 * los documentos adjuntos (PDF, XLSX…) como enlaces dentro de las columnas,
 * un recurso que enlaza al visor original del portal de transparencia.
 
-Es idempotente: cada ejecución actualiza los mismos conjuntos de datos, así
-que puede programarse (cron) para mantener CKAN sincronizado.
+Es idempotente: cada ejecución actualiza los mismos conjuntos de datos (solo
+resube lo que cambia) y retira, con salvaguardas, los de tablas que ya no
+existen. Se programa por instancia con Ansible (ver docs/INSTALACION.md).
 
     CKAN_URL=http://localhost:5000 CKAN_API_TOKEN=... \
         python3 sync.py portales/fuenlabrada.yml [--solo contratos-menores] [--dry-run]
@@ -33,6 +34,8 @@ import re
 import sys
 import time
 import unicodedata
+from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 import yaml
@@ -233,10 +236,51 @@ def publish(dst, pkg: dict, slug: str, labels: list[str], rows: list[list[str]])
     return uploaded
 
 
-def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict[str, int]:
-    """Recorre las tablas del portal. Con ``dst=None`` no escribe (dry-run)."""
+def existing_datasets(dst, cfg: dict) -> list[str]:
+    """Datasets del conector ya publicados (por organización, etiqueta y prefijo)."""
+    prefix = cfg.get("dataset_prefix", "transparencia-")
+    res = dst.action.package_search(fq=f'organization:"{cfg["organization"]}" +tags:transparencia',
+                                    rows=1000, include_private=True)
+    return sorted(d["name"] for d in res["results"] if d["name"].startswith(prefix))
+
+
+def plan_retirement(existing: list[str], expected: set[str], stats: dict, cfg: dict) -> tuple[list[str], str | None]:
+    """Qué datasets retirar y, si hay que bloquear la retirada, por qué.
+
+    Nunca se retira nada si la ejecución no es fiable: errores, origen sin
+    tablas, o una retirada masiva (por encima de ``max_retirada``, por defecto
+    20 %) que apunta a un fallo del origen y no a un cambio real."""
+    to_retire = [n for n in existing if n not in expected]
+    if not to_retire:
+        return [], None
+    if stats["errores"]:
+        return to_retire, "hubo errores en la ejecución"
+    if not expected:
+        return to_retire, "el origen no devolvió ninguna tabla"
+    limit = float(cfg.get("max_retirada", 0.2))
+    if existing and len(to_retire) / len(existing) > limit:
+        return to_retire, f"se retirarían {len(to_retire)} de {len(existing)} (más del {limit:.0%})"
+    return to_retire, None
+
+
+def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict:
+    """Recorre las tablas del portal. Con ``dst=None`` no escribe (dry-run).
+
+    Publica/actualiza las tablas con datos y retira (borrado recuperable) los
+    datasets cuyas tablas ya no existen, están vacías o se han excluido."""
     excluded = {slugify(x) for x in cfg.get("excluir", [])}
-    stats = {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 0}
+    prefix = cfg.get("dataset_prefix", "transparencia-")
+    stats = {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 0,
+             "retiradas": 0, "retirada_bloqueada": 0}
+    detail: dict[str, list] = {"actualizadas": [], "retiradas": [], "errores": [], "bloqueo": [], "avisos": []}
+    expected: set[str] = set()
+    groups: set[str] | None = None
+    if dst is not None:
+        try:
+            dst.action.organization_show(id=cfg["organization"])
+        except NotFound:
+            raise SystemExit(f"La organización '{cfg['organization']}' no existe en CKAN: créala antes de sincronizar.")
+        groups = set(dst.action.group_list())
     for ent in src.entities(cfg.get("module", 5)):
         name = ent["name"].get(src.lang) or next(iter(ent["name"].values()))
         route = ent.get("route") or "/" + slugify(name)
@@ -252,6 +296,7 @@ def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict[str, 
             stats["vacias"] += 1
             log(f"- {name}: sin registros, se omite")
             continue
+        expected.add((prefix + slug)[:100])
         labels, rows = table(src, records, src.schema(route, ent["uuid"]))
         log(f"+ {name}: {len(rows)} registros, {len(labels)} columnas")
         if dst is None:
@@ -259,14 +304,53 @@ def run(cfg: dict, src: Source, dst=None, solo: str | None = None) -> dict[str, 
             stats["publicadas"] += 1
             continue
         try:
-            stats["ficheros_subidos"] += publish(dst, build_package(name, slug, route, src.base, cfg),
-                                                 slug, labels, rows)
+            pkg = build_package(name, slug, route, src.base, cfg)
+            missing = [g["name"] for g in pkg["groups"] if g["name"] not in groups]
+            if missing:
+                pkg["groups"] = [g for g in pkg["groups"] if g["name"] in groups]
+                warning = f"{name}: el grupo {', '.join(missing)} no existe en CKAN; se publica sin él"
+                if warning not in detail["avisos"]:
+                    detail["avisos"].append(warning)
+                    log(f"  aviso: {warning}")
+            uploaded = publish(dst, pkg, slug, labels, rows)
+            stats["ficheros_subidos"] += uploaded
             stats["publicadas"] += 1
+            if uploaded:
+                detail["actualizadas"].append(name)
         except Exception as e:  # registrar y seguir con el resto de tablas
             stats["errores"] += 1
+            detail["errores"].append(f"{name}: {type(e).__name__}: {e}")
             log(f"! {name}: {type(e).__name__}: {e}")
         time.sleep(0.2)
+
+    if dst is not None and not solo:
+        to_retire, blocked = plan_retirement(existing_datasets(dst, cfg), expected, stats, cfg)
+        if blocked:
+            stats["retirada_bloqueada"] = len(to_retire)
+            detail["bloqueo"] = [blocked] + to_retire
+            log(f"! retirada BLOQUEADA ({blocked}): {', '.join(to_retire)}")
+        for ds_name in ([] if blocked else to_retire):
+            dst.action.package_delete(id=ds_name)       # borrado recuperable (estado "deleted")
+            stats["retiradas"] += 1
+            detail["retiradas"].append(ds_name)
+            log(f"- retirado {ds_name}: la tabla ya no existe, está vacía o se excluyó")
+    stats["detalle"] = detail
     return stats
+
+
+def save_report(stats: dict, cfg_path: str) -> Path | None:
+    base = os.environ.get("OGOV_TOOLS_DATA_DIR")
+    if not base:
+        return None
+    d = Path(base) / "connectors" / "transparencia" / "reports"
+    d.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ok = not stats["errores"] and not stats["retirada_bloqueada"]
+    path = d / f"{Path(cfg_path).stem}-{stamp}.json"
+    path.write_text(json.dumps({"fecha": stamp, "resultado": "OK" if ok else "ERROR", **stats},
+                               ensure_ascii=False, indent=2))
+    (d / f"{Path(cfg_path).stem}-ultimo.json").write_text(path.read_text())
+    return path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -285,10 +369,14 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("Define CKAN_URL y CKAN_API_TOKEN (o usa --dry-run).")
         dst = RemoteCKAN(url, apikey=token, user_agent=UA)
     stats = run(cfg, src, dst, a.solo)
+    report = None if a.dry_run else save_report(stats, a.config)
     log(f"[transparencia] {stats['publicadas']} tablas publicadas, {stats['vacias']} vacías, "
         f"{stats['excluidas']} excluidas, {stats['errores']} con error, "
-        f"{stats['ficheros_subidos']} ficheros subidos (el resto sin cambios)")
-    return 1 if stats["errores"] else 0
+        f"{stats['ficheros_subidos']} ficheros subidos (el resto sin cambios), "
+        f"{stats['retiradas']} retiradas, {stats['retirada_bloqueada']} con retirada bloqueada")
+    if report:
+        log(f"Informe: {report}")
+    return 1 if stats["errores"] or stats["retirada_bloqueada"] else 0
 
 
 if __name__ == "__main__":

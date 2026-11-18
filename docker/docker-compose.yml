@@ -41,6 +41,8 @@ services:
       redis: { condition: service_healthy }
     volumes:
       - ckan_storage:/var/lib/ckan
+      # Configuración propia de la instancia (p. ej. conector de transparencia)
+      - ./config:/srv/app/config:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5000/api/3/action/status_show"]

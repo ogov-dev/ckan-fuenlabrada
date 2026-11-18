@@ -31,6 +31,13 @@ argument_specs:
       ckan_health_retries: {type: int, default: 60}
       ckan_health_host: {type: str, default: 127.0.0.1}
       ckan_expected_plugins: {type: list, elements: str, required: false}
+      ckan_transparencia_config:
+        type: str
+        default: ""
+        description: YAML del conector de transparencia (nodo de control). Vacío = sin sincronización.
+      ckan_transparencia_cron:
+        type: dict
+        description: "Programación cron de la sincronización (minute, hour, day, month, weekday)."
       vault_ckan_secret_key: {type: str, required: true, no_log: true}
       vault_ckan_jwt_secret: {type: str, required: true, no_log: true}
       vault_ckan_sysadmin_password: {type: str, required: true, no_log: true}

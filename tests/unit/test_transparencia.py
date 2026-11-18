@@ -109,6 +109,8 @@ class FakeCKAN:
 
     def __init__(self, fail_on: str | None = None):
         self.pkgs, self.calls, self.fail_on = {}, [], fail_on
+        self.missing_orgs: set[str] = set()
+        self.groups: set[str] = {"hacienda", "sector-publico"}
         self.action = self
 
     def __getattr__(self, name):
@@ -118,6 +120,17 @@ class FakeCKAN:
         self.calls.append(name)
         if name == self.fail_on:
             raise RuntimeError("fallo simulado")
+        if name == "organization_show":
+            if data["id"] in self.missing_orgs:
+                raise NotFound()
+            return {"name": data["id"]}
+        if name == "group_list":
+            return sorted(self.groups)
+        if name == "package_search":
+            return {"results": [{"name": n} for n, p in self.pkgs.items() if p.get("state") != "deleted"]}
+        if name == "package_delete":
+            self.pkgs[data["id"]]["state"] = "deleted"
+            return None
         if name == "package_show":
             if data["id"] not in self.pkgs:
                 raise NotFound()
@@ -213,7 +226,8 @@ RECS = {"1": [{"data": {"k": {"es": "x"}}}]}
 def test_run_estadisticas(monkeypatch):
     monkeypatch.setattr(t.time, "sleep", lambda s: None)
     stats = t.run(CFG, _FakeSource(ENTS, RECS), FakeCKAN())
-    assert stats == {"publicadas": 1, "vacias": 1, "excluidas": 1, "errores": 0, "ficheros_subidos": 2}
+    assert {k: stats[k] for k in ("publicadas", "vacias", "excluidas", "errores", "ficheros_subidos", "retiradas")} \
+        == {"publicadas": 1, "vacias": 1, "excluidas": 1, "errores": 0, "ficheros_subidos": 2, "retiradas": 0}
 
 
 def test_run_dry_run_no_escribe():
@@ -223,7 +237,7 @@ def test_run_dry_run_no_escribe():
 def test_run_solo_una_tabla(monkeypatch):
     monkeypatch.setattr(t.time, "sleep", lambda s: None)
     stats = t.run(CFG, _FakeSource(ENTS, RECS), FakeCKAN(), solo="vacia")
-    assert stats == {"publicadas": 0, "vacias": 1, "excluidas": 0, "errores": 0, "ficheros_subidos": 0}
+    assert (stats["publicadas"], stats["vacias"], stats["retiradas"]) == (0, 1, 0)
 
 
 def test_run_sigue_si_una_tabla_falla(monkeypatch):
@@ -243,9 +257,11 @@ def test_main_exige_credenciales(tmp_path, monkeypatch):
 def test_main_codigo_de_salida(tmp_path, monkeypatch):
     p = tmp_path / "c.yml"
     p.write_text("source: https://x\norganization: a\n")
-    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 2, "ficheros_subidos": 0})
+    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 0, "vacias": 0, "excluidas": 0, "errores": 2, "ficheros_subidos": 0,
+                                       "retiradas": 0, "retirada_bloqueada": 0})
     assert t.main([str(p), "--dry-run"]) == 1
-    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 3, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 6})
+    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 3, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 6,
+                                       "retiradas": 0, "retirada_bloqueada": 0})
     assert t.main([str(p), "--dry-run"]) == 0
 
 
@@ -278,3 +294,99 @@ def test_source_api_y_reintentos(monkeypatch):
     s.s = _JsonSession([requests.ConnectionError("x")] * 3)
     with pytest.raises(RuntimeError, match="No se pudo leer"):
         s.entities(5)
+
+
+
+# --------------------------------------------------- retirada y salvaguardas ---
+def _existing(dst, *names):
+    for n in names:
+        dst.pkgs[n] = {"name": n, "resources": []}
+
+
+ENTS10 = [{"uuid": str(i), "name": {"es": f"Tabla {i}"}, "route": f"/tabla-{i}"} for i in range(10)]
+RECS10 = {str(i): [{"data": {"k": {"es": "x"}}}] for i in range(10)}
+
+
+def test_retira_tablas_desaparecidas(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    _existing(dst, "transparencia-tabla-99")                       # ya no existe en el origen
+    stats = t.run(CFG, _FakeSource(ENTS10, RECS10), dst)
+    assert stats["retiradas"] == 1 and stats["detalle"]["retiradas"] == ["transparencia-tabla-99"]
+    assert dst.pkgs["transparencia-tabla-99"]["state"] == "deleted"   # borrado recuperable
+    assert stats["retirada_bloqueada"] == 0
+
+
+def test_retira_tablas_vaciadas_o_excluidas(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    recs = {**RECS10, "3": []}                                      # la 3 se ha vaciado
+    cfg = {**CFG, "excluir": ["tabla-5"]}                           # la 5 se excluye
+    t.run(CFG, _FakeSource(ENTS10, RECS10), dst)                    # primera publicación (10)
+    stats = t.run(cfg, _FakeSource(ENTS10, recs), dst)
+    assert sorted(stats["detalle"]["retiradas"]) == ["transparencia-tabla-3", "transparencia-tabla-5"]
+
+
+def test_no_retira_si_el_origen_viene_vacio(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    _existing(dst, "transparencia-a", "transparencia-b")
+    stats = t.run(CFG, _FakeSource(ENTS10, {}), dst)                # API devuelve tablas sin registros
+    assert stats["retiradas"] == 0 and stats["retirada_bloqueada"] == 2
+    assert "ningún" in stats["detalle"]["bloqueo"][0] or "ninguna" in stats["detalle"]["bloqueo"][0]
+    assert all(p.get("state") != "deleted" for p in dst.pkgs.values())
+
+
+def test_no_retira_si_seria_masivo(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    t.run(CFG, _FakeSource(ENTS10, RECS10), dst)                    # 10 publicadas
+    stats = t.run(CFG, _FakeSource(ENTS10[:5], RECS10), dst)        # desaparece el 50 %
+    assert stats["retiradas"] == 0 and stats["retirada_bloqueada"] == 5
+    assert "más del 20%" in stats["detalle"]["bloqueo"][0]
+
+
+def test_no_retira_si_hubo_errores(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    _existing(dst, "transparencia-vieja")
+    real = t.publish
+    monkeypatch.setattr(t, "publish", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("caída")))
+    stats = t.run(CFG, _FakeSource(ENTS10, RECS10), dst)
+    monkeypatch.setattr(t, "publish", real)
+    assert stats["errores"] == 10 and stats["retiradas"] == 0 and stats["retirada_bloqueada"] == 1
+
+
+def test_main_falla_si_retirada_bloqueada(tmp_path, monkeypatch):
+    p = tmp_path / "c.yml"
+    p.write_text("source: https://x\norganization: a\n")
+    monkeypatch.setattr(t, "run", lambda *a, **k: {"publicadas": 3, "vacias": 0, "excluidas": 0, "errores": 0,
+                                                   "ficheros_subidos": 0, "retiradas": 0, "retirada_bloqueada": 4})
+    assert t.main([str(p), "--dry-run"]) == 1
+
+
+def test_organizacion_inexistente_detiene(monkeypatch):
+    dst = FakeCKAN()
+    dst.missing_orgs = {"ayto"}
+    with pytest.raises(SystemExit, match="no existe en CKAN"):
+        t.run(CFG, _FakeSource(ENTS, RECS), dst)
+
+
+def test_grupo_inexistente_se_omite_con_aviso(monkeypatch):
+    monkeypatch.setattr(t.time, "sleep", lambda s: None)
+    dst = FakeCKAN()
+    dst.groups = {"sector-publico"}                                  # falta "hacienda"
+    stats = t.run(CFG, _FakeSource(ENTS, RECS), dst)
+    assert stats["errores"] == 0
+    assert dst.pkgs["transparencia-presupuestos"]["groups"] == []
+    assert any("hacienda" in a for a in stats["detalle"]["avisos"])
+
+
+def test_informe_de_ejecucion(tmp_path, monkeypatch):
+    monkeypatch.setenv("OGOV_TOOLS_DATA_DIR", str(tmp_path))
+    stats = {"publicadas": 1, "vacias": 0, "excluidas": 0, "errores": 0, "ficheros_subidos": 0,
+             "retiradas": 0, "retirada_bloqueada": 2, "detalle": {"bloqueo": ["x"]}}
+    path = t.save_report(stats, "/cfg/fuenlabrada.yml")
+    data = json.loads(path.read_text())
+    assert data["resultado"] == "ERROR" and data["retirada_bloqueada"] == 2
+    assert (path.parent / "fuenlabrada-ultimo.json").exists()

@@ -22,3 +22,14 @@ ckan_expected_plugins:
   - pages
   - datastore
   - xloader
+
+# Conector Portal de Transparencia (opcional). Ruta, en el nodo de control, al
+# YAML del conector de esta instancia; vacío = sin conector ni tarea programada.
+ckan_transparencia_config: ""
+# Programación (formato cron). Por defecto: día 1 de cada mes a las 03:30.
+ckan_transparencia_cron:
+  minute: "30"
+  hour: "3"
+  day: "1"
+  month: "*"
+  weekday: "*"
