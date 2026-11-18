@@ -204,7 +204,7 @@ class Acceptance:
             cat = next(g.subjects(RDF.type, DCAT.Catalog))
             pub = list(g.objects(cat, DCT.publisher))
             assert pub and str(pub[0]).startswith("http://datos.gob.es/recurso/sector-publico/org/Organismo/"), pub
-            assert list(g.objects(cat, DCAT.themeTaxonomy)) == [URIRef(NTI)]
+            assert list(g.objects(cat, DCAT.themeTaxonomy)) == [URIRef(NTI.rstrip("/"))]
             assert list(g.objects(cat, DCT.license)) and list(g.objects(cat, DCT.language))
             n = len(list(g.subjects(RDF.type, DCAT.Dataset)))
             return f"catálogo DCAT válido: publicador DIR3 {pub[0].split('/')[-1]}, {n} datasets en la página"
@@ -227,8 +227,10 @@ class Acceptance:
             dist = next(g.objects(ds, DCAT.distribution))
             assert list(g.objects(dist, DCT.license)), "sin dct:license en la distribución"
             fmt = next(g.objects(dist, DCT["format"]))
-            assert (fmt, RDF.type, DCT.IMT) in g
-            return "dataset con temática NTI, idioma, licencia (dataset y distribución) y formato IMT"
+            assert str(fmt) == "http://publications.europa.eu/resource/authority/file-type/CSV", fmt
+            titles = list(g.objects(ds, DCT.title))
+            assert titles and all(t.language == "es" for t in titles), "título sin etiqueta @es"
+            return "dataset con temática NTI, idioma, licencia (dataset y distribución), formato EU y textos @es"
         self.check("DCAT", "perfil de federación DCAT-AP-ES en un dataset", dataset)
 
         def negotiation():

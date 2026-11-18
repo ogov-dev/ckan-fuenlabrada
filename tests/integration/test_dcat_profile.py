@@ -9,10 +9,11 @@ from rdflib.namespace import RDF, RDFS
 
 from ckan.tests import factories
 from ckanext.dcat.processors import RDFParser, RDFSerializer
-from ckanext.dcat.profiles import DCAT, DCT
+from ckanext.dcat.profiles import DCAT, DCT, SPDX, VCARD, XSD
 
 from ckanext.ogovtech_fixes.profiles import DIR3_BASE, THEME_TAXONOMY, clean_mime
 
+EU_FT = "http://publications.europa.eu/resource/authority/file-type/"
 PROFILES = ["euro_dcat_ap_2", "euro_dcat_ap_scheming", "dcat_ap_es"]
 NTI = "http://datos.gob.es/kos/sector-publico/sector/"
 SPA = URIRef("http://publications.europa.eu/resource/authority/language/SPA")
@@ -57,18 +58,70 @@ class TestDataset:
         assert list(g.objects(ref, DCT.spatial)) == [MADRID]
 
     def test_spatial_propio_no_se_duplica(self):
-        propio = "http://datos.gob.es/recurso/sector-publico/territorio/Municipio/Fuenlabrada"
+        propio = "http://publications.europa.eu/resource/authority/country/ESP"
         g, ref = _graph(_dataset(spatial_coverage=[{"uri": propio, "text": "Fuenlabrada"}]))
         uris = [o for o in g.objects(ref, DCT.spatial) if isinstance(o, URIRef)]
         assert uris == [URIRef(propio)]
 
-    def test_formato_imt(self):
+    def test_territorio_no_admitido_se_sustituye_por_el_del_portal(self):
+        municipio = URIRef("http://datos.gob.es/recurso/sector-publico/territorio/Municipio/Fuenlabrada")
+        g, ref = _graph(_dataset(spatial_coverage=[{"uri": str(municipio)}]))
+        assert list(g.objects(ref, DCT.spatial)) == [MADRID]
+        assert not list(g.predicate_objects(municipio))
+
+    def test_territorio_por_uri_no_es_location_sin_geometria(self):
+        uri = "http://datos.gob.es/recurso/sector-publico/territorio/Autonomia/Comunidad-Madrid"
+        g, ref = _graph(_dataset(spatial_coverage=[{"uri": uri}]))
+        assert (URIRef(uri), RDF.type, DCT.Location) not in g
+        assert URIRef(uri) in set(g.objects(ref, DCT.spatial))
+
+    def test_formato_vocabulario_europeo(self):
         g, ref = _graph(_dataset())
         dist = next(g.objects(ref, DCAT.distribution))
-        imt = next(g.objects(dist, DCT["format"]))
-        assert (imt, RDF.type, DCT.IMT) in g
-        assert str(next(g.objects(imt, RDF.value))) == "text/csv"
-        assert str(next(g.objects(imt, RDFS.label))) == "CSV"
+        assert list(g.objects(dist, DCT["format"])) == [URIRef(EU_FT + "CSV")]
+        assert not list(g.subjects(RDF.type, DCT.IMT))                     # nada de IMT (NTI-RISP)
+
+    def test_formato_sin_codigo_europeo_se_omite(self):
+        g, ref = _graph(_dataset(resources=[{"url": "https://e.org/a.prj", "format": "PRJ", "name": "Proyección"}]))
+        dist = next(g.objects(ref, DCAT.distribution))
+        assert not list(g.objects(dist, DCT["format"]))
+
+    def test_textos_con_etiqueta_es(self):
+        ds = _dataset(title="Calidad del aire", notes="Mediciones", tags=[{"name": "aire"}])
+        g, ref = _graph(ds)
+        for p in (DCT.title, DCT.description, DCAT.keyword):
+            vals = list(g.objects(ref, p))
+            assert vals and all(v.language == "es" for v in vals), p
+        dist = next(g.objects(ref, DCAT.distribution))
+        assert all(v.language == "es" for v in g.objects(dist, DCT.title))
+
+    def test_checksum_solo_sha1(self):
+        sha1 = "a" * 40
+        ds = _dataset(resources=[{"url": "https://e.org/a.csv", "format": "CSV", "name": "A", "hash": sha1},
+                                 {"url": "https://e.org/b.csv", "format": "CSV", "name": "B", "hash": "b" * 32}])
+        g, ref = _graph(ds)
+        checksums = list(g.subjects(SPDX.checksumValue, None))
+        assert len(checksums) == 1
+        assert g.value(checksums[0], SPDX.algorithm) == URIRef("http://spdx.org/rdf/terms#checksumAlgorithm_sha1")
+        assert g.value(checksums[0], SPDX.checksumValue).datatype == XSD.hexBinary
+
+    def test_recurso_sin_url_no_se_federa(self):
+        ds = _dataset(resources=[{"url": "https://e.org/a.csv", "format": "CSV", "name": "A"},
+                                 {"url": "", "format": "CSV", "name": "Sin URL"}])
+        g, ref = _graph(ds)
+        dists = list(g.objects(ref, DCAT.distribution))
+        assert len(dists) == 1 and all(list(g.objects(d, DCAT.accessURL)) for d in dists)
+
+    def test_contacto_sin_correo_se_omite(self):
+        g, ref = _graph(_dataset(contact=[{"name": "Servicio de datos"}]))
+        assert not list(g.objects(ref, DCAT.contactPoint))
+
+    @pytest.mark.ckan_config("ckanext.ogovtech_theme.contact_email", "datos@ayto.es")
+    def test_contacto_sin_correo_usa_el_del_portal(self):
+        g, ref = _graph(_dataset(contact=[{"name": "Servicio de datos"}]))
+        cp = next(g.objects(ref, DCAT.contactPoint))
+        assert list(g.objects(cp, VCARD.hasEmail)) == [URIRef("mailto:datos@ayto.es")]
+        assert all(v.language == "es" for v in g.objects(cp, VCARD.fn))
 
     def test_mime_con_parametros_y_api(self):
         ds = _dataset(resources=[
@@ -115,11 +168,18 @@ class TestCatalogo:
         assert list(g.objects(ref, DCT.license)) == [URIRef("https://creativecommons.org/licenses/by/4.0/")]
         assert list(g.objects(ref, DCT.issued))
 
+    @pytest.mark.ckan_config("ckan.site_description", "")
+    def test_descripcion_del_catalogo_siempre_presente(self):
+        g, ref = self._catalog()
+        descs = list(g.objects(ref, DCT.description))
+        assert len(descs) == 1 and descs[0].language == "es"
+
     def test_endpoint_catalogo(self, app):
         _dataset(name="aire")
         res = app.get("/catalog.ttl")
         assert res.status_code == 200
         assert "dcat:themeTaxonomy" in res.body and "aire" in res.body
+        assert "<http://datos.gob.es/kos/sector-publico/sector>" in res.body
 
 
 def test_orden_de_perfiles_configurado(ckan_config):

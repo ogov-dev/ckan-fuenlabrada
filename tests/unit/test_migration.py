@@ -90,7 +90,8 @@ def cfg(tmp_path):
 
 def dataset(**kw):
     base = {"id": "d1", "name": "ds-uno", "title": "Uno", "notes": "Notas", "license_id": "odc-by",
-            "tags": [{"name": "a"}], "groups": [{"name": "urbanismo"}], "resources": []}
+            "tags": [{"name": "a"}], "groups": [{"name": "urbanismo"}], "resources": [],
+            "organization": {"name": "vieja"}, "type": "dataset", "state": "active", "private": False}
     base.update(kw)
     return base
 
@@ -250,13 +251,84 @@ def test_export_detecta_fallos_y_reutiliza(cfg, monkeypatch):
     assert rep2.stats["ficheros_reutilizados"] >= 1
 
 
-def test_export_avisa_de_otras_organizaciones(cfg):
-    src = _source_ckan([])
-    src.handlers["package_search"] = lambda d: {"count": 2, "results": [
-        dataset(name="propio", organization={"name": "vieja"}), dataset(name="ajeno", organization={"name": "otra"})]}
+# --------------------------------------------------------------- selección ---
+def _paged_source(pages, declared=None):
+    """Origen cuyo package_search devuelve las páginas indicadas según "start"."""
+    calls = []
+
+    def search(d):
+        calls.append(d)
+        return pages[d.get("start", 0) // m.PAGE]
+    src = FakeCKAN({"package_search": search,
+                    "organization_show": lambda d: {"name": d["id"], "package_count": declared}})
+    return src, calls
+
+
+def _ds(i, **kw):
+    return dataset(id=f"id{i}", name=f"ds-{i:03d}", **kw)
+
+
+def test_seleccion_filtra_por_organizacion_y_tipo():
+    src, calls = _paged_source([{"count": 1, "results": [_ds(1)]}], declared=1)
+    rep = m.Report("export", "p")
+    out = m.select_datasets(src, "vieja", rep, authenticated=False)
+    assert [d["id"] for d in out] == ["id1"]
+    assert calls[0]["fq"] == 'organization:"vieja" +dataset_type:dataset'
+    assert "include_private" not in calls[0]
+    assert rep.ok and any("SOURCE_API_TOKEN" in w.message for w in rep.warnings)
+
+
+def test_seleccion_con_token_incluye_privados_y_borradores():
+    src, calls = _paged_source([{"count": 2, "results": [_ds(1, private=True), _ds(2, state="draft")]}])
+    rep = m.Report("export", "p")
+    m.select_datasets(src, "vieja", rep, authenticated=True)
+    assert calls[0]["include_private"] is True and calls[0]["include_drafts"] is True
+    assert rep.stats["datasets_privados"] == 1 and rep.stats["datasets_borrador"] == 1
+    assert not rep.warnings
+
+
+def test_seleccion_pagina_y_elimina_duplicados():
+    page1 = {"count": 101, "results": [_ds(i) for i in range(100)]}
+    page2 = {"count": 101, "results": [_ds(99), _ds(100)]}     # el 99 se repite (el origen cambió)
+    src, calls = _paged_source([page1, page2], declared=101)
+    rep = m.Report("export", "p")
+    out = m.select_datasets(src, "vieja", rep, authenticated=False)
+    assert len(out) == 101 and len({d["id"] for d in out}) == 101
+    assert [c["start"] for c in calls] == [0, 100] and rep.ok
+
+
+def test_seleccion_detecta_totales_que_no_cuadran():
+    src, _ = _paged_source([{"count": 3, "results": [_ds(1), _ds(2)]}, {"count": 3, "results": []}], declared=5)
+    rep = m.Report("export", "p")
+    m.select_datasets(src, "vieja", rep, authenticated=False)
+    msgs = " ".join(e.message for e in rep.errors)
+    assert "anunció 3" in msgs and "declara 5" in msgs
+
+
+def test_seleccion_descarta_otra_organizacion_u_otro_tipo():
+    res = [_ds(1), _ds(2, organization={"name": "otra"}), _ds(3, type="showcase")]
+    src, _ = _paged_source([{"count": 3, "results": res}], declared=None)
+    rep = m.Report("export", "p")
+    out = m.select_datasets(src, "vieja", rep, authenticated=False)
+    assert [d["id"] for d in out] == ["id1"]
+    msgs = " ".join(e.message for e in rep.errors)
+    assert "otra organización" in msgs and "otro tipo" in msgs
+
+
+def test_export_avisa_de_recurso_sin_url(cfg):
+    src, _ = _paged_source([{"count": 1, "results": [_ds(1, resources=[{"id": "r", "name": "vacío", "url": ""}])]}],
+                           declared=1)
+    src.handlers.update({"organization_list": ["vieja"], "group_list": []})
     rep = m.cmd_export(cfg, src=src, session=FakeSession({}))
-    assert rep.ok
-    assert [(i.level, i.dataset) for i in rep.warnings] == [(m.WARNING, "ajeno")]
+    assert rep.ok and any("sin URL" in w.message and w.resource == "vacío" for w in rep.warnings)
+
+
+def test_export_usa_la_seleccion(cfg):
+    src, calls = _paged_source([{"count": 1, "results": [_ds(1)]}], declared=1)
+    src.handlers.update({"organization_list": ["vieja"], "group_list": []})
+    rep = m.cmd_export(cfg, src=src, session=FakeSession({}))
+    assert rep.ok and rep.stats["datasets"] == 1
+    assert calls[0]["fq"].startswith('organization:"vieja"')
 
 
 def test_export_error_si_falta_organizacion(cfg):

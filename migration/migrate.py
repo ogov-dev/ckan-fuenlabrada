@@ -9,6 +9,10 @@ Markdown) y termina con código distinto de 0 si hay errores:
     python3 migrate.py verify portales/<ayto>.yml   # compara origen y destino
 
 ``import`` y ``verify`` necesitan ``CKAN_URL`` y ``CKAN_API_TOKEN`` (sysadmin).
+``export`` acepta ``SOURCE_API_TOKEN`` (opcional, del portal de ORIGEN, solo
+lectura) para incluir datasets privados y borradores.
+
+Selección: solo los datasets de tipo ``dataset`` de ``organization.from``.
 
 Alcance (propuesta, apdo. 1.4.2): organizaciones, grupos, conjuntos de datos,
 recursos compatibles con el esquema común y páginas de ckanext-pages. Se
@@ -256,12 +260,67 @@ def download(session: requests.Session, url: str, target: Path, retries: int = 3
     raise RuntimeError(f"descarga fallida tras {retries} intentos: {last}")
 
 
+# =============================================================== selección ===
+PAGE = 100
+
+
+def select_datasets(src, org: str, rep: Report, authenticated: bool) -> list[dict]:
+    """Datasets a migrar: SOLO los de tipo ``dataset`` de la organización de origen.
+
+    * Sin token de origen, ``package_search`` solo ve datasets públicos y
+      activos: se avisa de que los privados/borradores no se migran.
+    * Pagina por nombre y elimina duplicados por id (el origen puede cambiar
+      durante la exportación) y contrasta el total con el que declara la
+      propia organización.
+    """
+    fq = f'organization:"{org}" +dataset_type:dataset'
+    params = {"q": "*:*", "fq": fq, "rows": PAGE, "sort": "name asc"}
+    if authenticated:
+        params.update(include_private=True, include_drafts=True)
+    else:
+        rep.warning("sin SOURCE_API_TOKEN: solo se migran los datasets públicos y activos del origen")
+
+    by_id: dict[str, dict] = {}
+    start, total = 0, None
+    while total is None or start < total:
+        page = src.action.package_search(start=start, **params)
+        total = page["count"]
+        for ds in page["results"]:
+            by_id.setdefault(ds["id"], ds)
+        if not page["results"]:
+            break
+        start += PAGE
+    datasets = sorted(by_id.values(), key=lambda d: d["name"])
+
+    if len(datasets) != total:
+        rep.error(f"la búsqueda anunció {total} datasets de '{org}' pero se obtuvieron {len(datasets)} distintos")
+    try:
+        declared = src.action.organization_show(id=org, include_datasets=False).get("package_count")
+    except Exception as e:  # el contraste es una comprobación adicional
+        declared = None
+        rep.warning(f"no se pudo contrastar el total con la organización: {e}")
+    if declared is not None and not authenticated and declared != len(datasets):
+        rep.error(f"la organización '{org}' declara {declared} datasets públicos y se seleccionaron {len(datasets)}")
+    foreign = [d["name"] for d in datasets if (d.get("organization") or {}).get("name") != org]
+    if foreign:
+        rep.error(f"la búsqueda devolvió datasets de otra organización: {', '.join(foreign[:5])}")
+        datasets = [d for d in datasets if d["name"] not in foreign]
+    other_types = [d["name"] for d in datasets if d.get("type", "dataset") != "dataset"]
+    if other_types:
+        rep.error(f"la búsqueda devolvió datasets de otro tipo: {', '.join(other_types[:5])}")
+        datasets = [d for d in datasets if d["name"] not in other_types]
+
+    rep.stats["datasets_privados"] = sum(1 for d in datasets if d.get("private"))
+    rep.stats["datasets_borrador"] = sum(1 for d in datasets if d.get("state") == "draft")
+    return datasets
+
+
 # ================================================================ export ===
 def cmd_export(cfg: dict, src=None, session: requests.Session | None = None) -> Report:
     from ckanapi import RemoteCKAN
 
     rep = Report("export", cfg["_slug"])
-    src = src or RemoteCKAN(cfg["source"], user_agent=UA)
+    src = src or RemoteCKAN(cfg["source"], apikey=os.environ.get("SOURCE_API_TOKEN") or None, user_agent=UA)
     session = session or requests.Session()
     session.headers.setdefault("User-Agent", UA)
     dump = cfg["_dump"]
@@ -275,15 +334,8 @@ def cmd_export(cfg: dict, src=None, session: requests.Session | None = None) -> 
         rep.error(f"la organización '{cfg['organization']['from']}' no existe en origen")
     groups = [src.action.group_show(id=g, include_datasets=False) for g in src.action.group_list()]
 
-    datasets: list[dict] = []
-    start, total = 0, None
-    while total is None or start < total:
-        page = src.action.package_search(q="*:*", rows=100, start=start, sort="name asc", include_private=True)
-        total = page["count"]
-        datasets += page["results"]
-        start += 100
-    if len(datasets) != total:
-        rep.error(f"package_search anunció {total} datasets pero se recibieron {len(datasets)}")
+    datasets = select_datasets(src, cfg["organization"]["from"], rep,
+                               authenticated=bool(os.environ.get("SOURCE_API_TOKEN")))
 
     pages: list[dict] = []
     if cfg.get("pages"):
@@ -294,10 +346,6 @@ def cmd_export(cfg: dict, src=None, session: requests.Session | None = None) -> 
 
     for ds in datasets:
         rep.count("datasets")
-        org_name = (ds.get("organization") or {}).get("name")
-        if org_name != cfg["organization"]["from"]:
-            rep.warning(f"pertenece a la organización '{org_name}', no a '{cfg['organization']['from']}': "
-                        f"se importará en '{cfg['organization']['name']}'", dataset=ds["name"])
         for res in ds["resources"]:
             rep.count("recursos")
             res.pop("_file", None)
@@ -305,6 +353,10 @@ def cmd_export(cfg: dict, src=None, session: requests.Session | None = None) -> 
             res["_export"] = {"status": "ok", "issues": []}
             if res.get("url_type") != "upload":
                 rep.count("recursos_externos")
+                if not (res.get("url") or "").strip():
+                    rep.warning("recurso sin URL en origen: se migra igual, pero no se federará "
+                                "(dcat:accessURL obligatorio); conviene corregirlo",
+                                dataset=ds["name"], resource=res.get("name") or res["id"])
                 continue
             rep.count("ficheros")
             fname = safe_name(res["url"].rsplit("/", 1)[-1])

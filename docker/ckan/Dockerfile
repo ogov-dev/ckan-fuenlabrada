@@ -86,6 +86,8 @@ CMD ["/srv/app/ogov-start.sh"]
 FROM baseline AS test
 USER root
 RUN pip install --no-cache-dir -r ${SRC_DIR}/ckan/dev-requirements.txt
+COPY tests/federation/requirements.txt /tmp/federation-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/federation-requirements.txt
 COPY pytest.ini /srv/app/pytest.ini
 COPY tests /srv/app/tests
 COPY docker/ckan/test.ini /srv/app/test.ini
